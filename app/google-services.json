@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "699761880933",
+    "firebase_url": "https://accountsdb-3b0bf.firebaseio.com",
+    "project_id": "accountsdb-3b0bf",
+    "storage_bucket": "accountsdb-3b0bf.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:699761880933:android:5c3991645a1759c8",
+        "android_client_info": {
+          "package_name": "com.example.chengt.hotlineapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "699761880933-24e4siqddfa72g9gr7btjpondt5il8ui.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChDUUDGYDJ-h5SK0vYtLldrjatlxWKV-s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "699761880933-24e4siqddfa72g9gr7btjpondt5il8ui.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
