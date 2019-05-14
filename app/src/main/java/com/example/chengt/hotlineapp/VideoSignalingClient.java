@@ -27,7 +27,7 @@ public class VideoSignalingClient {
     private static VideoSignalingClient instance;
     private String roomName = null;
     private Socket socket;
-    boolean isChannelReady = false; // Is anyone in the room?
+    boolean isChannelReady = false; // Does room have two or more peers?
     boolean isInitiator = false; // Have room been created?
     boolean isStarted = false; // Have peerconnection been created?
     boolean isInRoom = false; // Is in the any room?

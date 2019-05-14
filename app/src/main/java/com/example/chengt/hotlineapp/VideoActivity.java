@@ -256,6 +256,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         }
     }
 
+    //TODO: when remote leave the room, close the view of that remote
     private void closeVideoView(final int index){
 
     }
@@ -284,7 +285,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         showToast("Received offer");
         runOnUiThread(() -> {
             if (!VideoSignalingClient.getInstance().isInitiator && !VideoSignalingClient.getInstance().isStarted) {
-                //haven't initial yet
+                //Not the room creator and have no peerconnection object
                 onTryToStart(id);
             }
             try {
@@ -339,6 +340,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onTryToStart(String id) {
         runOnUiThread(() -> {
+            if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady){
+                createPeerConnection(id);
+                VideoSignalingClient.getInstance().isStarted = true;
+                doCall(id);
+            }
+            /*
             if (!VideoSignalingClient.getInstance().isStarted && localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady) {
                 ID_list.add(id);
                 createPeerConnection(id);
@@ -353,11 +360,13 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 createPeerConnection(id);
                 doCall(id);
             }
+            */
         });
     }
 
     //Creating the local PeerConnection instance.
     private void createPeerConnection(String id) {
+        ID_list.add(id);
         PeerConnection peer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection"){
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
@@ -373,6 +382,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
             }
         });
+
+        //add local stream to localpeer
         MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
         stream.addTrack(localAudioTrack);
         stream.addTrack(localVideoTrack);
@@ -424,6 +435,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         );
     }
 
+    //TODO: modify this function for more peers
     //Received remote peer's media stream. We will get the first video track and render it.
     private void gotRemoteStream(MediaStream stream, String id) {
         //We have remote video stream. Add to the render.
