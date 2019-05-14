@@ -325,9 +325,10 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     //Remote Ice candidate received.
     @Override
-    public void onIceCandidateReceived(JSONObject data) {
+    public void onIceCandidateReceived(JSONObject data, String id) {
         try {
-            localPeer.addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
+            int index = ID_list.indexOf(id);
+            localPeers.get(index).addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -340,7 +341,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onTryToStart(String id) {
         runOnUiThread(() -> {
-            if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady){
+            //If id is in ID_list, needn't start again
+            if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1){
                 createPeerConnection(id);
                 VideoSignalingClient.getInstance().isStarted = true;
                 doCall(id);

@@ -147,7 +147,7 @@ public class VideoSignalingClient {
                         } else if (type.equalsIgnoreCase("answer") && isStarted) {
                             callback.onAnswerReceived(data, id);
                         } else if (type.equalsIgnoreCase("candidate") && isStarted) {
-                            callback.onIceCandidateReceived(data);
+                            callback.onIceCandidateReceived(data, id);
                         }
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -211,7 +211,7 @@ public class VideoSignalingClient {
         void onRemoteHangUp(String msg, String id);
         void onOfferReceived(JSONObject data, String id);
         void onAnswerReceived(JSONObject data, String id);
-        void onIceCandidateReceived(JSONObject data);
+        void onIceCandidateReceived(JSONObject data, String id);
         void onTryToStart(String id);
         void onCreatedRoom();
         void onJoinedRoom();
