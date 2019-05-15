@@ -11,6 +11,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -50,6 +51,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     SurfaceViewRenderer localVideoView;
     SurfaceViewRenderer remoteVideoView;
+    List<SurfaceViewRenderer> viewslist = new ArrayList<>();
+    FrameLayout viewframes;
 
     Button hangup;
     PeerConnection localPeer;
@@ -67,6 +70,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_video);
+        viewframes = findViewById(R.id.activity_main);
 
         //Change audio output to the speaker.
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -82,9 +86,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(VideoActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, 1);
         }
-
-        initViews();
-        initVideos();
 
         PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.189:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
         peerIceServers.add(peerIceServer);
@@ -103,20 +104,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     protected void onDestroy() {
         super.onDestroy();
         VideoSignalingClient.getInstance().close();
-    }
-
-    private void initViews() {
-        hangup = findViewById(R.id.end_call);
-        localVideoView = findViewById(R.id.local_gl_surface_view);
-        remoteVideoView = findViewById(R.id.remote_gl_surface_view);
-        hangup.setOnClickListener(this);
-    }
-
-    private void initVideos() {
-        rootEglBase = EglBase.create();
-        localVideoView.init(rootEglBase.getEglBaseContext(), null);
-        remoteVideoView.init(rootEglBase.getEglBaseContext(), null);
-        localVideoView.setZOrderMediaOverlay(true);
     }
 
     public void start() {
@@ -158,11 +145,10 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             videoCapturerAndroid.startCapture(1024, 720, 30);
         }
 
-        localVideoView.setVisibility(View.VISIBLE);
-        localVideoTrack.addSink(localVideoView);
-
-        localVideoView.setMirror(true);
-        remoteVideoView.setMirror(true);
+        hangup = findViewById(R.id.end_call);
+        hangup.setOnClickListener(this);
+        addViews(viewslist.size());
+        ID_list.add("myself");
 
         gotUserMedia = true;
         /*
@@ -241,24 +227,21 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             //hangup by one of remote
             else{
                 int bye_index = ID_list.indexOf(id);
+                CloseViews(bye_index);
                 localPeers.get(bye_index).close();
                 localPeers.remove(bye_index);
-                closeVideoView(bye_index);
                 //if remote is have no one then close the session
+                /*
                 if(localPeers.isEmpty()){
                     VideoSignalingClient.getInstance().close();
                     updateVideoViews(false);
                     finish();
                 }
+                */
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    //TODO: when remote leave the room, close the view of that remote
-    private void closeVideoView(final int index){
-
     }
 
     private void updateVideoViews(final boolean remoteVisible) {
@@ -292,7 +275,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 int index = ID_list.indexOf(id);
                 localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.OFFER, data.getString("sdp")));
                 doAnswer(index);
-                updateVideoViews(true);
+                //updateVideoViews(true);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -317,7 +300,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         try {
             int index = ID_list.indexOf(id);
             localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.fromCanonicalForm(data.getString("type").toLowerCase()), data.getString("sdp")));
-            updateVideoViews(true);
+            //updateVideoViews(true);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -444,22 +427,41 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         final VideoTrack videoTrack = stream.videoTracks.get(0);
         runOnUiThread(() -> {
             try {
-                remoteVideoView.setVisibility(View.VISIBLE);
-                videoTrack.addSink(remoteVideoView);
-                hangup.setEnabled(true);
+                int index = viewslist.size();
+                addViews(index);
+                videoTrack.addSink(viewslist.get(index));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
     }
 
-    //Adding the stream to the local peer.
-    private void addStreamToLocalPeer() {
-        //Creating local mediaStream.
-        MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
-        stream.addTrack(localAudioTrack);
-        stream.addTrack(localVideoTrack);
-        localPeer.addStream(stream);
+    private void addViews(final int index) {
+        int halfhight, width;
+        FrameLayout.LayoutParams lp;
+        SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
+        surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
+        surfaceviewrenderer.setVisibility(View.VISIBLE);
+        surfaceviewrenderer.setMirror(true);
+        if(index == 0){
+            lp = new FrameLayout.LayoutParams(dpToPx(120), dpToPx(150));
+            lp.gravity = Gravity.BOTTOM|Gravity.END;
+            surfaceviewrenderer.setZOrderMediaOverlay(true);
+        }
+        else{
+            lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        }
+        //surfaceviewrenderer.setLayoutParams(lp);
+        if(index == 0){
+            localVideoTrack.addSink(surfaceviewrenderer);
+        }
+        viewslist.add(surfaceviewrenderer);
+        viewframes.addView(surfaceviewrenderer, lp);
+    }
+
+    //TODO: when remote leave the room, close the view of that remote
+    private void CloseViews(final int index){
+        viewframes.removeViewAt(index);
     }
 
     /**

@@ -12,6 +12,7 @@
         android:layout_height="match_parent"
         tools:context="com.example.chengt.webrtc_3.MainActivity">
 
+        <!--
         <org.webrtc.SurfaceViewRenderer
             android:id="@+id/remote_gl_surface_view"
             android:layout_width="match_parent"
@@ -23,6 +24,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="bottom|end"/>
+        -->
 
     </FrameLayout>
 
