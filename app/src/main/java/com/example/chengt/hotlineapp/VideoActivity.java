@@ -59,7 +59,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     List<PeerConnection> localPeers = new ArrayList<>();
     List<String> ID_list = new ArrayList<>();
     PeerConnection.RTCConfiguration rtcConfig;
-    EglBase rootEglBase;
+    EglBase rootEglBase = EglBase.create();
 
     boolean gotUserMedia;
     List<PeerConnection.IceServer> peerIceServers = new ArrayList<>();
@@ -148,7 +148,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         hangup = findViewById(R.id.end_call);
         hangup.setOnClickListener(this);
         addViews(viewslist.size());
-        ID_list.add("myself");
+        //ID_list.add("myself");
 
         gotUserMedia = true;
         /*
@@ -227,7 +227,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             //hangup by one of remote
             else{
                 int bye_index = ID_list.indexOf(id);
-                CloseViews(bye_index);
+                CloseViews(bye_index+1);
                 localPeers.get(bye_index).close();
                 localPeers.remove(bye_index);
                 //if remote is have no one then close the session
@@ -273,7 +273,9 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             }
             try {
                 int index = ID_list.indexOf(id);
+                Log.d(TAG, "index:"+index+" id:"+id);
                 localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.OFFER, data.getString("sdp")));
+                Log.d(TAG, localPeers.get(index).signalingState().toString());
                 doAnswer(index);
                 //updateVideoViews(true);
             } catch (JSONException e) {
@@ -283,10 +285,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     private void doAnswer(int index) {
+
         localPeers.get(index).createAnswer(new VideoCustomSdpObserver("localCreateAnswer") {
             @Override
             public void onCreateSuccess(SessionDescription sessionDescription) {
                 super.onCreateSuccess(sessionDescription);
+                Log.d(TAG, "Create Answer successfully");
                 localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
                 VideoSignalingClient.getInstance().emitMessage(sessionDescription);
             }
@@ -309,6 +313,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Remote Ice candidate received.
     @Override
     public void onIceCandidateReceived(JSONObject data, String id) {
+        showToast("Received remote IceCandidate");
         try {
             int index = ID_list.indexOf(id);
             localPeers.get(index).addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
@@ -330,22 +335,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 VideoSignalingClient.getInstance().isStarted = true;
                 doCall(id);
             }
-            /*
-            if (!VideoSignalingClient.getInstance().isStarted && localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady) {
-                ID_list.add(id);
-                createPeerConnection(id);
-                VideoSignalingClient.getInstance().isStarted = true;
-                if (VideoSignalingClient.getInstance().isInitiator) {
-                    doCall(id);
-                }
-            }
-            //The third or more peer try to connect
-            else{
-                ID_list.add(id);
-                createPeerConnection(id);
-                doCall(id);
-            }
-            */
         });
     }
 
@@ -374,25 +363,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         stream.addTrack(localVideoTrack);
         peer.addStream(stream);
         localPeers.add(peer);
-        /*
-        localPeer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection") {
-            @Override
-            public void onIceCandidate(IceCandidate iceCandidate) {
-                super.onIceCandidate(iceCandidate);
-                onIceCandidateReceived(iceCandidate);
-            }
-
-            @Override
-            public void onAddStream(MediaStream mediaStream) {
-                showToast("Received remote stream");
-                super.onAddStream(mediaStream);
-                gotRemoteStream(mediaStream);
-
-            }
-        });
-
-        addStreamToLocalPeer();
-        */
     }
 
     private void initConfiguration(){
