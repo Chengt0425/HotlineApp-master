@@ -144,9 +144,9 @@ public class VideoSignalingClient {
                         String type = data.getString("type");
                         if (type.equalsIgnoreCase("offer")) {
                             callback.onOfferReceived(data, id);
-                        } else if (type.equalsIgnoreCase("answer") && isStarted) {
+                        } else if (type.equalsIgnoreCase("answer")) {
                             callback.onAnswerReceived(data, id);
-                        } else if (type.equalsIgnoreCase("candidate") && isStarted) {
+                        } else if (type.equalsIgnoreCase("candidate")) {
                             callback.onIceCandidateReceived(data, id);
                         }
                     } catch (JSONException e) {

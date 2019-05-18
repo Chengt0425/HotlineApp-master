@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Point;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
@@ -11,6 +12,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -53,13 +55,15 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     SurfaceViewRenderer remoteVideoView;
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
     FrameLayout viewframes;
+    EglBase rootEglBase = EglBase.create();
+    int screenhight, screenwidth;
 
     Button hangup;
-    PeerConnection localPeer;
     List<PeerConnection> localPeers = new ArrayList<>();
     List<String> ID_list = new ArrayList<>();
+    List<Boolean> Signaling  = new ArrayList<>();
     PeerConnection.RTCConfiguration rtcConfig;
-    EglBase rootEglBase = EglBase.create();
+
 
     boolean gotUserMedia;
     List<PeerConnection.IceServer> peerIceServers = new ArrayList<>();
@@ -96,6 +100,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         String roomName = intent.getStringExtra("room");
         VideoSignalingClient.getInstance().setRoomName(roomName);
         VideoSignalingClient.getInstance().init(this);
+
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        screenwidth = size.x;
+        screenhight = size.y;
 
         start();
     }
@@ -159,39 +169,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         VideoSignalingClient.getInstance().emitMessage("got user media");
     }
 
-    private VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
-        final String[] deviceNames = enumerator.getDeviceNames();
-
-        //Try to find front facing camera.
-        Log.d(TAG, "Looking for front facing cameras.");
-        for (String deviceName : deviceNames) {
-            if (enumerator.isFrontFacing(deviceName)) {
-                Log.d(TAG, "Create front facing camera capturer.");
-                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
-
-                if (videoCapturer != null) {
-                    return videoCapturer;
-                }
-            }
-        }
-
-        //Front facing camera not found, try something else.
-        Log.d(TAG, "Looking for other cameras.");
-        for (String deviceName : deviceNames) {
-            if (!enumerator.isFrontFacing(deviceName)) {
-                Log.d(TAG, "Creating other camera capturer.");
-                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
-
-                if (videoCapturer != null) {
-                    return videoCapturer;
-                }
-            }
-        }
-
-        //Can't find any camera.
-        return null;
-    }
-
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
@@ -213,6 +190,113 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         });
     }
 
+    //Signaling Callback - called when remote peer sends offer.
+    @Override
+    public void onOfferReceived(final JSONObject data, String id) {
+        //Log.d("sdpflow", "Received offer");
+        showToast("Received offer");
+        runOnUiThread(() -> {
+            if (!VideoSignalingClient.getInstance().isInitiator) {
+                //Not the room creator and have no peerconnection object
+                onTryToStart(id);
+            }
+            try {
+                int index = ID_list.indexOf(id);
+                localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.OFFER, data.getString("sdp")));
+                doAnswer(index);
+                //updateVideoViews(true);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    //Signaling Callback - called when remote peer sends answer to your offer.
+    @Override
+    public void onAnswerReceived(JSONObject data, String id) {
+        //Log.d("sdpflow", "Received answer");
+        showToast("Received answer");
+        try {
+            int index = ID_list.indexOf(id);
+            if(index == -1) showToast("Received illegal ID's answer");
+            else localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.fromCanonicalForm(data.getString("type").toLowerCase()), data.getString("sdp")));
+            //updateVideoViews(true);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    //Remote Ice candidate received.
+    @Override
+    public void onIceCandidateReceived(JSONObject data, String id) {
+        //Log.d("sdpflow", "Received remote IceCandidate");
+        showToast("Received remote IceCandidate");
+        try {
+            int index = ID_list.indexOf(id);
+            if(index == -1) showToast("Received illegal ID's IceCandidate");
+            else localPeers.get(index).addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * This method will be called directly by the app when it is the initiator and has got the local media
+     * or when the remote peer sends a message through socket that it is ready to transmit AV data.
+     */
+    @Override
+    public void onTryToStart(String id) {
+        runOnUiThread(() -> {
+            //If id is in ID_list, needn't start again
+            if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1){
+                createPeerConnection(id);
+                //VideoSignalingClient.getInstance().isStarted = true;
+                if(VideoSignalingClient.getInstance().isInitiator) doCall(id);
+            }
+        });
+    }
+
+    private void initConfiguration(){
+        rtcConfig = new PeerConnection.RTCConfiguration(peerIceServers);
+        //TCP candidates are only useful when connecting to a server that supports ICE-TCP.
+        rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
+        rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
+        rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
+        rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
+        //Use ECDSA encryption.
+        rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
+        //Enable DTLS-SRTP.
+        rtcConfig.enableDtlsSrtp = true;
+    }
+
+    //Creating the local PeerConnection instance.
+    private void createPeerConnection(String id) {
+        ID_list.add(id);
+        Signaling.add(false);
+        PeerConnection peer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection"){
+            @Override
+            public void onIceCandidate(IceCandidate iceCandidate) {
+                //Log.d("sdpflow", "Received local icecandidate");
+                super.onIceCandidate(iceCandidate);
+                sendIceCandidate(iceCandidate);
+            }
+
+            @Override
+            public void onAddStream(MediaStream mediaStream) {
+                showToast("Received remote stream");
+                super.onAddStream(mediaStream);
+                gotRemoteStream(mediaStream, id);
+            }
+        });
+
+        //add local stream to localpeer
+        MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
+        stream.addTrack(localAudioTrack);
+        stream.addTrack(localVideoTrack);
+        peer.addStream(stream);
+        localPeers.add(peer);
+    }
+
     //close the peerconnection with id and remove it
     private void hangup(String id) {
         try {
@@ -227,6 +311,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             //hangup by one of remote
             else{
                 int bye_index = ID_list.indexOf(id);
+                ID_list.remove(bye_index);
+                Signaling.remove(bye_index);
                 CloseViews(bye_index+1);
                 localPeers.get(bye_index).close();
                 localPeers.remove(bye_index);
@@ -244,170 +330,31 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         }
     }
 
-    private void updateVideoViews(final boolean remoteVisible) {
-        runOnUiThread(() -> {
-            ViewGroup.LayoutParams params = localVideoView.getLayoutParams();
-            if (remoteVisible) {
-                params.height = dpToPx(100);
-                params.width = dpToPx(100);
-            } else {
-                params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            }
-            localVideoView.setLayoutParams(params);
-        });
-    }
-
-    public int dpToPx(int dp) {
-        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        return Math.round(dp * (displayMetrics.xdpi / DisplayMetrics.DENSITY_DEFAULT));
-    }
-
-    //Signaling Callback - called when remote peer sends offer.
-    @Override
-    public void onOfferReceived(final JSONObject data, String id) {
-        showToast("Received offer");
-        runOnUiThread(() -> {
-            if (!VideoSignalingClient.getInstance().isInitiator && !VideoSignalingClient.getInstance().isStarted) {
-                //Not the room creator and have no peerconnection object
-                onTryToStart(id);
-            }
-            try {
-                int index = ID_list.indexOf(id);
-                Log.d(TAG, "index:"+index+" id:"+id);
-                localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.OFFER, data.getString("sdp")));
-                Log.d(TAG, localPeers.get(index).signalingState().toString());
-                doAnswer(index);
-                //updateVideoViews(true);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private void doAnswer(int index) {
-
-        localPeers.get(index).createAnswer(new VideoCustomSdpObserver("localCreateAnswer") {
-            @Override
-            public void onCreateSuccess(SessionDescription sessionDescription) {
-                super.onCreateSuccess(sessionDescription);
-                Log.d(TAG, "Create Answer successfully");
-                localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
-                VideoSignalingClient.getInstance().emitMessage(sessionDescription);
-            }
-        }, new MediaConstraints());
-    }
-
-    //Signaling Callback - called when remote peer sends answer to your offer.
-    @Override
-    public void onAnswerReceived(JSONObject data, String id) {
-        showToast("Received answer");
-        try {
-            int index = ID_list.indexOf(id);
-            localPeers.get(index).setRemoteDescription(new VideoCustomSdpObserver("localSetRemoteDescription"), new SessionDescription(SessionDescription.Type.fromCanonicalForm(data.getString("type").toLowerCase()), data.getString("sdp")));
-            //updateVideoViews(true);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
-
-    //Remote Ice candidate received.
-    @Override
-    public void onIceCandidateReceived(JSONObject data, String id) {
-        showToast("Received remote IceCandidate");
-        try {
-            int index = ID_list.indexOf(id);
-            localPeers.get(index).addIceCandidate(new IceCandidate(data.getString("id"), data.getInt("label"), data.getString("candidate")));
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * This method will be called directly by the app when it is the initiator and has got the local media
-     * or when the remote peer sends a message through socket that it is ready to transmit AV data.
-     */
-    @Override
-    public void onTryToStart(String id) {
-        runOnUiThread(() -> {
-            //If id is in ID_list, needn't start again
-            if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1){
-                createPeerConnection(id);
-                VideoSignalingClient.getInstance().isStarted = true;
-                doCall(id);
-            }
-        });
-    }
-
-    //Creating the local PeerConnection instance.
-    private void createPeerConnection(String id) {
-        ID_list.add(id);
-        PeerConnection peer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection"){
-            @Override
-            public void onIceCandidate(IceCandidate iceCandidate) {
-                super.onIceCandidate(iceCandidate);
-                onIceCandidateReceived(iceCandidate);
-            }
-
-            @Override
-            public void onAddStream(MediaStream mediaStream) {
-                showToast("Received remote stream");
-                super.onAddStream(mediaStream);
-                gotRemoteStream(mediaStream, id);
-
-            }
-        });
-
-        //add local stream to localpeer
-        MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
-        stream.addTrack(localAudioTrack);
-        stream.addTrack(localVideoTrack);
-        peer.addStream(stream);
-        localPeers.add(peer);
-    }
-
-    private void initConfiguration(){
-        rtcConfig = new PeerConnection.RTCConfiguration(peerIceServers);
-        //TCP candidates are only useful when connecting to a server that supports ICE-TCP.
-        rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
-        rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
-        rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
-        rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
-        //Use ECDSA encryption.
-        rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
-        //Enable DTLS-SRTP.
-        rtcConfig.enableDtlsSrtp = true;
-    }
-
-    //Received local ice candidate. Send it to remote peer through signaling for negotiation.
-    public void onIceCandidateReceived(IceCandidate iceCandidate) {
-        //We have received ice candidate We can set it to the other peer.
-        VideoSignalingClient.getInstance().emitIceCandidate(iceCandidate);
-    }
-
-    public void showToast(final String msg) {
-        runOnUiThread(() ->
-                Toast.makeText(VideoActivity.this, msg, Toast.LENGTH_SHORT).show()
-        );
-    }
-
-    //TODO: modify this function for more peers
     //Received remote peer's media stream. We will get the first video track and render it.
     private void gotRemoteStream(MediaStream stream, String id) {
         //We have remote video stream. Add to the render.
         final VideoTrack videoTrack = stream.videoTracks.get(0);
         runOnUiThread(() -> {
             try {
-                int index = viewslist.size();
-                addViews(index);
-                videoTrack.addSink(viewslist.get(index));
+                Signaling.set(ID_list.indexOf(id), true);
+                int peers = viewslist.size();
+                addViews(peers);
+                adjustViewsLayout(peers);
+                videoTrack.addSink(viewslist.get(peers));
+                VideoSignalingClient.getInstance().isInitiator = true;
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
     }
 
+    //Received local ice candidate. Send it to remote peer through signaling for negotiation.
+    private void sendIceCandidate(IceCandidate iceCandidate) {
+        //We have received ice candidate We can set it to the other peer.
+        VideoSignalingClient.getInstance().emitIceCandidate(iceCandidate);
+    }
+
     private void addViews(final int index) {
-        int halfhight, width;
         FrameLayout.LayoutParams lp;
         SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
         surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
@@ -417,21 +364,33 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             lp = new FrameLayout.LayoutParams(dpToPx(120), dpToPx(150));
             lp.gravity = Gravity.BOTTOM|Gravity.END;
             surfaceviewrenderer.setZOrderMediaOverlay(true);
-        }
-        else{
-            lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-        }
-        //surfaceviewrenderer.setLayoutParams(lp);
-        if(index == 0){
             localVideoTrack.addSink(surfaceviewrenderer);
         }
+        /*
+        else{
+            adjustViewsLayout(index);
+            lp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        }
+        */
         viewslist.add(surfaceviewrenderer);
-        viewframes.addView(surfaceviewrenderer, lp);
+        viewframes.addView(surfaceviewrenderer);
+    }
+
+    private void adjustViewsLayout(int num){
+        int adjusthight = screenhight/num;
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,adjusthight);
+        for(int i=1; i<=num; i++){
+            if(i==1) lp.gravity = Gravity.TOP;
+            else if(i==2) lp.gravity = Gravity.BOTTOM;
+            viewslist.get(i).setLayoutParams(lp);
+        }
     }
 
     //TODO: when remote leave the room, close the view of that remote
     private void CloseViews(final int index){
         viewframes.removeViewAt(index);
+        viewslist.remove(index);
+        adjustViewsLayout(viewslist.size()-1);
     }
 
     /**
@@ -449,6 +408,17 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 VideoSignalingClient.getInstance().emitMessage(sessionDescription);
             }
         }, sdpConstraints);
+    }
+
+    private void doAnswer(int index) {
+        localPeers.get(index).createAnswer(new VideoCustomSdpObserver("localCreateAnswer") {
+            @Override
+            public void onCreateSuccess(SessionDescription sessionDescription) {
+                super.onCreateSuccess(sessionDescription);
+                localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
+                VideoSignalingClient.getInstance().emitMessage(sessionDescription);
+            }
+        }, new MediaConstraints());
     }
 
     //SignalingCallback - called when the room is created.
@@ -472,4 +442,57 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     @Override
     public void roomIsFull(String roomName) { showToast("Room " + roomName + " is full"); }
+
+    private VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
+        final String[] deviceNames = enumerator.getDeviceNames();
+
+        //Try to find front facing camera.
+        Log.d(TAG, "Looking for front facing cameras.");
+        for (String deviceName : deviceNames) {
+            if (enumerator.isFrontFacing(deviceName)) {
+                Log.d(TAG, "Create front facing camera capturer.");
+                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
+
+                if (videoCapturer != null) return videoCapturer;
+            }
+        }
+
+        //Front facing camera not found, try something else.
+        Log.d(TAG, "Looking for other cameras.");
+        for (String deviceName : deviceNames) {
+            if (!enumerator.isFrontFacing(deviceName)) {
+                Log.d(TAG, "Creating other camera capturer.");
+                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
+
+                if (videoCapturer != null) return videoCapturer;
+            }
+        }
+
+        //Can't find any camera.
+        return null;
+    }
+
+    public int dpToPx(int dp) {
+        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        return Math.round(dp * (displayMetrics.xdpi / DisplayMetrics.DENSITY_DEFAULT));
+    }
+
+    public void showToast(final String msg) {
+        runOnUiThread(() ->
+                Toast.makeText(VideoActivity.this, msg, Toast.LENGTH_SHORT).show()
+        );
+    }
+
+    private void updateVideoViews(final boolean remoteVisible) {
+        runOnUiThread(() -> {
+            ViewGroup.LayoutParams params = localVideoView.getLayoutParams();
+            if (remoteVisible) {
+                params.height = dpToPx(100);
+                params.width = dpToPx(100);
+            } else {
+                params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            }
+            localVideoView.setLayoutParams(params);
+        });
+    }
 }
