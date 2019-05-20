@@ -26,6 +26,7 @@ import okhttp3.OkHttpClient;
 public class VideoSignalingClient {
     private static VideoSignalingClient instance;
     private String roomName = null;
+    private String socketid;
     private Socket socket;
     boolean isChannelReady = false; // Does room have two or more peers?
     boolean isInitiator = false; // Have room been created?
@@ -88,6 +89,8 @@ public class VideoSignalingClient {
                 Log.d("VideoSignalingClient", "created call() called with: args =[" + Arrays.toString(args) + "]");
                 isInitiator = true;
                 isInRoom = true;
+                socketid = (String)args[0];
+                Log.d("VideoSignalingClient", "socketid:"+socketid);
                 callback.onCreatedRoom();
             });
 
@@ -109,6 +112,8 @@ public class VideoSignalingClient {
                 Log.d("VideoSignalingClient", "joined call() called with: args = [" + Arrays.toString(args) + "]");
                 isChannelReady = true;
                 isInRoom = true;
+                socketid = (String)args[0];
+                Log.d("VideoSignalingClient", "socketid:"+socketid);
                 callback.onJoinedRoom();
             });
 
@@ -142,11 +147,12 @@ public class VideoSignalingClient {
                         String id = (String) args[1];
                         Log.d("VideoSignalingClient", "JSONObject received :: " + data.toString());
                         String type = data.getString("type");
-                        if (type.equalsIgnoreCase("offer")) {
+                        String rid = data.getString("receiver");
+                        if (type.equalsIgnoreCase("offer") && rid.equals(socketid)) {
                             callback.onOfferReceived(data, id);
-                        } else if (type.equalsIgnoreCase("answer")) {
+                        } else if (type.equalsIgnoreCase("answer") && rid.equals(socketid)) {
                             callback.onAnswerReceived(data, id);
-                        } else if (type.equalsIgnoreCase("candidate")) {
+                        } else if (type.equalsIgnoreCase("candidate") && rid.equals(socketid)) {
                             callback.onIceCandidateReceived(data, id);
                         }
                     } catch (JSONException e) {
@@ -170,11 +176,12 @@ public class VideoSignalingClient {
         socket.emit("message", roomName, message);
     }
 
-    public void emitMessage(SessionDescription message) {
+    public void emitMessage(SessionDescription message, String recvid) {
         try {
             Log.d("VideoSignalingClient", "emitMessage() called with: message = [" + message + "]");
             JSONObject object = new JSONObject();
             object.put("type", message.type.canonicalForm());
+            object.put("receiver", recvid);
             object.put("sdp", message.description);
             Log.d("emitMessage", object.toString());
             socket.emit("message", roomName, object);
@@ -183,12 +190,13 @@ public class VideoSignalingClient {
         }
     }
 
-    public void emitIceCandidate(IceCandidate iceCandidate) {
+    public void emitIceCandidate(IceCandidate iceCandidate, String recvid) {
         try {
             JSONObject object = new JSONObject();
             object.put("type", "candidate");
             object.put("label", iceCandidate.sdpMLineIndex);
             object.put("id", iceCandidate.sdpMid);
+            object.put("receiver", recvid);
             object.put("candidate", iceCandidate.sdp);
             socket.emit("message", roomName, object);
         } catch (Exception e) {
