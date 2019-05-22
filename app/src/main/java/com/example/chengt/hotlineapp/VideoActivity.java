@@ -37,6 +37,7 @@ import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
+import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,10 +80,15 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         setContentView(R.layout.activity_video);
         viewframes = findViewById(R.id.activity_main);
 
+        //Enable changing the volume using the up/down keys during a conversation
+        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
+
         //Change audio output to the speaker.
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        //audioManager.setSpeakerphoneOn(true);
         audioManager.setSpeakerphoneOn(true);
+        //audioManager.setSpeakerphoneOn(false);
+        audioManager.setParameters("noise_suppression=auto");
+        WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
 
         //Ask for permissions.
         int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
@@ -111,12 +117,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         screenhight = size.y;
 
         start();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        VideoSignalingClient.getInstance().close();
     }
 
     public void start() {
@@ -170,6 +170,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         }
         */
         VideoSignalingClient.getInstance().emitMessage("got user media");
+        hangup.setEnabled(true);
     }
 
     @Override
@@ -309,7 +310,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 for(PeerConnection peers : localPeers) peers.close();
                 localPeers.clear();
                 VideoSignalingClient.getInstance().close();
-                updateVideoViews(false);
+                //updateVideoViews(false);
                 finish();
             }
             //hangup by one of remote
@@ -320,14 +321,13 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 CloseViews(bye_index+1);
                 localPeers.get(bye_index).close();
                 localPeers.remove(bye_index);
-                //if remote is have no one then close the session
-                /*
+
+                //When no others in room, close the room
                 if(localPeers.isEmpty()){
                     VideoSignalingClient.getInstance().close();
-                    updateVideoViews(false);
+                    //updateVideoViews(false);
                     finish();
                 }
-                */
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -377,15 +377,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     private void adjustViewsLayout(int num){
         int adjusthight = screenhight/2;
-        /*
-        adjust = findViewById(R.id.adjust);
-        adjust.setOnClickListener(this);
-        adjust.setEnabled(true);
-        testlp = new FrameLayout.LayoutParams(screenwidth,dpToPx(300));
-        testlp.gravity = Gravity.TOP;
-        viewslist.get(1).setLayoutParams(testlp);
-        */
-
         for(int i=1; i<=num; i++){
             FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,dpToPx(300));
             if(i==1) lp.gravity = Gravity.TOP;
@@ -393,10 +384,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             viewslist.get(i).setLayoutParams(lp);
         }
 
-    }
-
-    private void adjustLP(){
-        testlp.gravity = Gravity.BOTTOM;
     }
 
     //TODO: when remote leave the room, close the view of that remote
@@ -451,6 +438,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onNewPeerJoined() {
         showToast("Remote peer joined");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        VideoSignalingClient.getInstance().close();
     }
 
     @Override
