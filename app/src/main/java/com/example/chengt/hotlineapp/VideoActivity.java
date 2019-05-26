@@ -55,11 +55,9 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     AudioTrack localAudioTrack;
 
     SurfaceViewRenderer localVideoView;
-    SurfaceViewRenderer remoteVideoView;
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
     FrameLayout viewframes;
     EglBase rootEglBase = EglBase.create();
-    FrameLayout.LayoutParams testlp ;
     int screenhight, screenwidth;
 
     Button hangup;
@@ -85,8 +83,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
         //Change audio output to the speaker.
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.setSpeakerphoneOn(true);
-        //audioManager.setSpeakerphoneOn(false);
+        // audioManager.setSpeakerphoneOn(true);
+        audioManager.setSpeakerphoneOn(false);
         audioManager.setParameters("noise_suppression=auto");
         WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
 
@@ -169,7 +167,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             onTryToStart();
         }
         */
-        VideoSignalingClient.getInstance().emitMessage("got user media");
+        VideoSignalingClient.getInstance().emitMessage("handshake request");
         hangup.setEnabled(true);
     }
 
@@ -199,9 +197,11 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     public void onOfferReceived(final JSONObject data, String id) {
         Log.d("sdpflow", "Received offer from:"+id);
         showToast("Received offer");
-        if (!VideoSignalingClient.getInstance().isInitiator) {
+        // if (!VideoSignalingClient.getInstance().isInitiator) {
+        if (ID_list.indexOf(id) == -1){
             //Not the room creator and have no peerconnection object
-            onTryToStart(id);
+            createPeerConnection(id);
+            // onTryToStart(id);
         }
         runOnUiThread(()->{
             try {
@@ -253,8 +253,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         //If id is in ID_list, needn't start again
         if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1) {
             createPeerConnection(id);
-        }
-        if(VideoSignalingClient.getInstance().isInitiator && !Signaling_progress.get(id)){
             runOnUiThread(()->{
                 doCall(id);
             });
@@ -324,6 +322,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
                 //When no others in room, close the room
                 if(localPeers.isEmpty()){
+                    CloseViews(0);
                     VideoSignalingClient.getInstance().close();
                     //updateVideoViews(false);
                     finish();
@@ -376,9 +375,9 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     private void adjustViewsLayout(int num){
-        int adjusthight = screenhight/2;
+        int adjusthight = screenhight/num;
         for(int i=1; i<=num; i++){
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,dpToPx(300));
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,adjusthight);
             if(i==1) lp.gravity = Gravity.TOP;
             else if(i==2) lp.gravity = Gravity.BOTTOM;
             viewslist.get(i).setLayoutParams(lp);
@@ -390,7 +389,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     private void CloseViews(final int index){
         viewframes.removeViewAt(index);
         viewslist.remove(index);
-        adjustViewsLayout(viewslist.size()-1);
+        if(viewslist.size() > 1) adjustViewsLayout(viewslist.size()-1);
     }
 
     /**

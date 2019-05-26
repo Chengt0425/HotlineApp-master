@@ -135,7 +135,7 @@ public class VideoSignalingClient {
                     Log.d("VideoSignalingClient", "String received :: " + args[0]);
                     String data = (String) args[0];
                     String id = (String) args[1];
-                    if (data.equalsIgnoreCase("got user media")) {
+                    if (data.equalsIgnoreCase("handshake request")) {
                         callback.onTryToStart(id);
                     }
                     if (data.equalsIgnoreCase("bye")) {
