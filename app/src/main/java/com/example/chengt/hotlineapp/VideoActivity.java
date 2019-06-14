@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 public class VideoActivity extends AppCompatActivity implements View.OnClickListener, VideoSignalingClient.VideoSignalingInterface {
     PeerConnectionFactory peerConnectionFactory;
     MediaConstraints audioConstraints;
@@ -53,6 +54,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     VideoTrack localVideoTrack;
     AudioSource audioSource;
     AudioTrack localAudioTrack;
+    AudioManager audioManager;
 
     SurfaceViewRenderer localVideoView;
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
@@ -66,8 +68,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     Map<String, Boolean> Signaling_progress = new HashMap<String, Boolean>();
     PeerConnection.RTCConfiguration rtcConfig;
 
-
-    boolean gotUserMedia;
     List<PeerConnection.IceServer> peerIceServers = new ArrayList<>();
 
     private static final String TAG = "VideoActivity";
@@ -82,25 +82,17 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
 
         //Change audio output to the speaker.
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        // audioManager.setSpeakerphoneOn(true);
-        audioManager.setSpeakerphoneOn(false);
-        audioManager.setParameters("noise_suppression=auto");
-        WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
+        boolean SpeakerEnable = getIntent().getBooleanExtra("speaker",false);
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if(SpeakerEnable) audioManager.setSpeakerphoneOn(true);
+        else audioManager.setSpeakerphoneOn(false);
+        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
-        //Ask for permissions.
-        int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(VideoActivity.this, new String[]{Manifest.permission.CAMERA}, 1);
-        }
-        permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(VideoActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, 1);
-        }
+        //WebRtcAudioUtils.
 
-        PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.189:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
+        PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.179:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
         peerIceServers.add(peerIceServer);
-        PeerConnection.IceServer peerIceServer_stun = PeerConnection.IceServer.builder("stun:140.113.167.189:3478").createIceServer();
+        PeerConnection.IceServer peerIceServer_stun = PeerConnection.IceServer.builder("stun:140.113.167.179:3478").createIceServer();
         peerIceServers.add(peerIceServer_stun);
 
         Intent intent = this.getIntent();
@@ -108,11 +100,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         VideoSignalingClient.getInstance().setRoomName(roomName);
         VideoSignalingClient.getInstance().init(this);
 
-        Display display = getWindowManager().getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        screenwidth = size.x;
-        screenhight = size.y;
+        getScreenSize();
 
         start();
     }
@@ -161,12 +149,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         addViews(viewslist.size());
         //ID_list.add("myself");
 
-        gotUserMedia = true;
-        /*
-        if (VideoSignalingClient.getInstance().isInitiator) {
-            onTryToStart();
-        }
-        */
         VideoSignalingClient.getInstance().emitMessage("handshake request");
         hangup.setEnabled(true);
     }
@@ -195,13 +177,10 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Signaling Callback - called when remote peer sends offer.
     @Override
     public void onOfferReceived(final JSONObject data, String id) {
-        Log.d("sdpflow", "Received offer from:"+id);
         showToast("Received offer");
-        // if (!VideoSignalingClient.getInstance().isInitiator) {
         if (ID_list.indexOf(id) == -1){
             //Not the room creator and have no peerconnection object
             createPeerConnection(id);
-            // onTryToStart(id);
         }
         runOnUiThread(()->{
             try {
@@ -233,7 +212,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Remote Ice candidate received.
     @Override
     public void onIceCandidateReceived(JSONObject data, String id) {
-        Log.d("sdpflow", "Received remote IceCandidate from:"+id);
         showToast("Received remote IceCandidate");
         try {
             int index = ID_list.indexOf(id);
@@ -337,6 +315,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     private void gotRemoteStream(MediaStream stream, String id) {
         //We have remote video stream. Add to the render.
         final VideoTrack videoTrack = stream.videoTracks.get(0);
+        //stream.audioTracks.get(0).s
         runOnUiThread(() -> {
             try {
                 Signaling_progress.replace(id,false,true);
@@ -344,7 +323,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 addViews(peers);
                 adjustViewsLayout(peers);
                 videoTrack.addSink(viewslist.get(peers));
-                VideoSignalingClient.getInstance().isInitiator = true;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -361,12 +339,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
         surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
         surfaceviewrenderer.setVisibility(View.VISIBLE);
-        surfaceviewrenderer.setMirror(true);
         if(index == 0){
             FrameLayout.LayoutParams lp;
             lp = new FrameLayout.LayoutParams(dpToPx(120), dpToPx(150));
             lp.gravity = Gravity.BOTTOM|Gravity.END;
             surfaceviewrenderer.setZOrderMediaOverlay(true);
+            surfaceviewrenderer.setMirror(true);
             localVideoTrack.addSink(surfaceviewrenderer);
             surfaceviewrenderer.setLayoutParams(lp);
         }
@@ -385,7 +363,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     }
 
-    //TODO: when remote leave the room, close the view of that remote
     private void CloseViews(final int index){
         viewframes.removeViewAt(index);
         viewslist.remove(index);
@@ -488,16 +465,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         );
     }
 
-    private void updateVideoViews(final boolean remoteVisible) {
-        runOnUiThread(() -> {
-            ViewGroup.LayoutParams params = localVideoView.getLayoutParams();
-            if (remoteVisible) {
-                params.height = dpToPx(100);
-                params.width = dpToPx(100);
-            } else {
-                params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            }
-            localVideoView.setLayoutParams(params);
-        });
+    private void getScreenSize() {
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        screenwidth = size.x;
+        screenhight = size.y;
     }
+
 }
