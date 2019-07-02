@@ -15,7 +15,6 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
@@ -37,7 +36,6 @@ import org.webrtc.SurfaceViewRenderer;
 import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
-import org.webrtc.voiceengine.WebRtcAudioUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,7 +54,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     AudioTrack localAudioTrack;
     AudioManager audioManager;
 
-    SurfaceViewRenderer localVideoView;
+
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
     FrameLayout viewframes;
     EglBase rootEglBase = EglBase.create();
@@ -147,7 +145,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         hangup = findViewById(R.id.end_call);
         hangup.setOnClickListener(this);
         addViews(viewslist.size());
-        //ID_list.add("myself");
 
         VideoSignalingClient.getInstance().emitMessage("handshake request");
         hangup.setEnabled(true);
@@ -315,7 +312,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     private void gotRemoteStream(MediaStream stream, String id) {
         //We have remote video stream. Add to the render.
         final VideoTrack videoTrack = stream.videoTracks.get(0);
-        //stream.audioTracks.get(0).s
         runOnUiThread(() -> {
             try {
                 Signaling_progress.replace(id,false,true);
