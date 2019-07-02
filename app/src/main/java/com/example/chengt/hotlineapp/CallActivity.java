@@ -17,6 +17,7 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -36,6 +37,8 @@ public class CallActivity extends AppCompatActivity {
 
     Button call, start_record, stop_record;
     Switch speaker;
+    EditText input_text;
+    TextView input_type;
     boolean SpeakerEnable;
 
     boolean isRecording = false;
@@ -49,7 +52,8 @@ public class CallActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_call);
 
-        EditText editText_room = findViewById(R.id.room);
+        input_text = findViewById(R.id.input_text);
+        input_type = findViewById(R.id.input_type);
 
         /*
         Intent intent = this.getIntent();
@@ -80,7 +84,7 @@ public class CallActivity extends AppCompatActivity {
         call.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String string_room = editText_room.getText().toString();
+                String string_room = input_text.getText().toString();
 
                 // Check whether the room name is empty
                 if (string_room.isEmpty()) {
@@ -220,6 +224,19 @@ public class CallActivity extends AppCompatActivity {
     void createFolder() {
         if (!new File(Environment.getExternalStorageDirectory()+"/Recordings").exists()) {
             new File(Environment.getExternalStorageDirectory()+"/Recordings").mkdir();
+        }
+    }
+
+    public void onSelect(View view) {
+        switch(view.getId()) {
+            case R.id.by_server: {
+                input_type.setText("Room Name :");
+                break;
+            }
+            case R.id.by_direct: {
+                input_type.setText("Remote IP :");
+                break;
+            }
         }
     }
 }

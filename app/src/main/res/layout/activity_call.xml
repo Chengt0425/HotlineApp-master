@@ -4,59 +4,87 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:paddingTop="150dp">
+    android:paddingTop="200dp">
 
-    <EditText
-        android:id="@+id/room"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_margin="5sp"
-        android:gravity="center_horizontal"
-        android:hint="RoomName"
-        android:maxLength="15"
-        android:singleLine="true"
-        android:textSize="20sp" />
+        android:orientation="horizontal"
+        android:paddingLeft="50dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="or"
-        android:textSize="20sp"/>
-
-    <EditText
-        android:id="@+id/remoteip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_margin="5sp"
-        android:gravity="center_horizontal"
-        android:hint="Remote_Address"
-        android:maxLength="15"
-        android:singleLine="true"
-        android:textSize="20sp" />
-
-    <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/callType"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:orientation="vertical">
-
-        <RadioButton
-            android:id="@+id/radio_video"
+        <TextView
+            android:id="@+id/input_type"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="Video" />
+            android:layout_gravity="center"
+            android:layout_margin="5sp"
+            android:text="Room Name :"
+            android:textSize="20sp" />
 
-        <RadioButton
-            android:id="@+id/radio_text"
+        <EditText
+            android:id="@+id/input_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Text" />
-    </RadioGroup>
+            android:layout_gravity="center"
+            android:layout_margin="5sp"
+            android:gravity="center_horizontal"
+            android:maxLength="15"
+            android:singleLine="true"
+            android:textSize="20sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="130dp">
+
+        <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/callType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/radio_video"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Video" />
+
+            <RadioButton
+                android:id="@+id/radio_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Text" />
+        </RadioGroup>
+
+        <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/signal_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/by_server"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Server"
+                android:onClick="onSelect"/>
+
+            <RadioButton
+                android:id="@+id/by_direct"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="P2P"
+                android:onClick="onSelect"/>
+        </RadioGroup>
+
+
+    </LinearLayout>
 
     <Button
         android:id="@+id/call"
