@@ -125,4 +125,13 @@
 
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/ip_addr"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:gravity="bottom"
+        android:paddingLeft="10dp"
+        android:text="IP"
+        android:textSize="18sp" />
+
 </LinearLayout>

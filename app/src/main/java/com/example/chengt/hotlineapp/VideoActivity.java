@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -63,7 +64,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     Button hangup;
     List<PeerConnection> localPeers = new ArrayList<>();
     List<String> ID_list = new ArrayList<>();
-    Map<String, Boolean> Signaling_progress = new HashMap<String, Boolean>();
     PeerConnection.RTCConfiguration rtcConfig;
 
     List<PeerConnection.IceServer> peerIceServers = new ArrayList<>();
@@ -94,9 +94,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         peerIceServers.add(peerIceServer_stun);
 
         Intent intent = this.getIntent();
-        String roomName = intent.getStringExtra("room");
-        VideoSignalingClient.getInstance().setRoomName(roomName);
-        VideoSignalingClient.getInstance().init(this);
+        String signal_type = intent.getStringExtra("signaling");
+        String data = intent.getStringExtra("data");
+        String id = intent.getStringExtra("ip");
+        VideoSignalingClient.getInstance().init(data, signal_type, id, this);
+        //VideoSignalingClient.getInstance().setRoomName(roomName);
+        //VideoSignalingClient.getInstance().init(this);
 
         getScreenSize();
 
@@ -146,8 +149,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         hangup.setOnClickListener(this);
         addViews(viewslist.size());
 
-        VideoSignalingClient.getInstance().emitMessage("handshake request");
         hangup.setEnabled(true);
+        VideoSignalingClient.getInstance().Start();
     }
 
     @Override
@@ -250,7 +253,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Creating the local PeerConnection instance.
     private void createPeerConnection(String id) {
         ID_list.add(id);
-        Signaling_progress.put(id,false);
         PeerConnection peer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection"){
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
@@ -283,14 +285,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 for(PeerConnection peers : localPeers) peers.close();
                 localPeers.clear();
                 VideoSignalingClient.getInstance().close();
-                //updateVideoViews(false);
                 finish();
             }
             //hangup by one of remote
             else{
                 int bye_index = ID_list.indexOf(id);
                 ID_list.remove(bye_index);
-                Signaling_progress.remove(id);
                 CloseViews(bye_index+1);
                 localPeers.get(bye_index).close();
                 localPeers.remove(bye_index);
@@ -299,7 +299,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 if(localPeers.isEmpty()){
                     CloseViews(0);
                     VideoSignalingClient.getInstance().close();
-                    //updateVideoViews(false);
                     finish();
                 }
             }
@@ -314,7 +313,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         final VideoTrack videoTrack = stream.videoTracks.get(0);
         runOnUiThread(() -> {
             try {
-                Signaling_progress.replace(id,false,true);
                 int peers = viewslist.size();
                 addViews(peers);
                 adjustViewsLayout(peers);
@@ -377,7 +375,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 super.onCreateSuccess(sessionDescription);
                 localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
                 Log.d("onCreateSuccess", "SignalingClient emit");
-                VideoSignalingClient.getInstance().emitMessage(sessionDescription, id);
+                VideoSignalingClient.getInstance().emitMessage(sessionDescription, id, ID_list.size());
             }
         }, sdpConstraints);
     }
@@ -388,7 +386,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             public void onCreateSuccess(SessionDescription sessionDescription) {
                 super.onCreateSuccess(sessionDescription);
                 localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
-                VideoSignalingClient.getInstance().emitMessage(sessionDescription, ID_list.get(index));
+                VideoSignalingClient.getInstance().emitMessage(sessionDescription, ID_list.get(index), ID_list.size());
             }
         }, new MediaConstraints());
     }
@@ -410,6 +408,11 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onNewPeerJoined() {
         showToast("Remote peer joined");
+    }
+
+    @Override
+    public void onGetIPList(String id) {
+        VideoSignalingClient.getInstance().emitMessage(ID_list, id);
     }
 
     @Override
@@ -455,6 +458,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         return Math.round(dp * (displayMetrics.xdpi / DisplayMetrics.DENSITY_DEFAULT));
     }
 
+    @Override
     public void showToast(final String msg) {
         runOnUiThread(() ->
                 Toast.makeText(VideoActivity.this, msg, Toast.LENGTH_SHORT).show()

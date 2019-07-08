@@ -39,7 +39,8 @@ public class CallActivity extends AppCompatActivity {
     Switch speaker;
     EditText input_text;
     TextView input_type;
-    boolean SpeakerEnable;
+    TextView ip_text;
+    boolean SpeakerEnable = false;
 
     boolean isRecording = false;
     private MediaRecorder myrecorder;
@@ -54,19 +55,13 @@ public class CallActivity extends AppCompatActivity {
 
         input_text = findViewById(R.id.input_text);
         input_type = findViewById(R.id.input_type);
-
-        /*
-        Intent intent = this.getIntent();
-        String roomName = intent.getStringExtra("room");
-        editText_room.setText(R.string.room);
-        */
-
-        getLocalIpAddress();
-
+        ip_text = findViewById(R.id.ip_addr);
         call = findViewById(R.id.call);
         start_record = findViewById(R.id.start_record);
         stop_record = findViewById(R.id.stop_record);
         speaker = findViewById(R.id.switch1);
+
+        String local_ip = getLocalIpAddress();
 
         //Ask for permissions.
         int cmrpermission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
@@ -84,28 +79,44 @@ public class CallActivity extends AppCompatActivity {
         call.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String string_room = input_text.getText().toString();
+                String string_content = input_text.getText().toString();
 
-                // Check whether the room name is empty
-                if (string_room.isEmpty()) {
-                    showToast("The room name can't be empty.");
-                    return;
-                }
-
-                RadioGroup radioGroup = findViewById(R.id.callType);
+                RadioGroup callType = findViewById(R.id.callType);
+                RadioGroup signalType = findViewById(R.id.signal_type);
                 Intent intent = new Intent();
-                if (radioGroup.getCheckedRadioButtonId() == R.id.radio_video) {
+
+                //Get call type from radio group
+                if (callType.getCheckedRadioButtonId() == R.id.radio_video) {
                     intent.setClass(CallActivity.this, VideoActivity.class);
-                    intent.putExtra("room", string_room);
-                    intent.putExtra("speaker",SpeakerEnable);
-                    startActivity(intent);
                 }
                 else {
                     intent.setClass(CallActivity.this, TextActivity.class);
-                    intent.putExtra("room", string_room);
-                    intent.putExtra("speaker",SpeakerEnable);
-                    startActivity(intent);
                 }
+
+                //Get signaling type from radio group
+                if (signalType.getCheckedRadioButtonId() == R.id.by_direct) {
+                    intent.putExtra("signaling", "direct");
+                    intent.putExtra("ip", local_ip);
+
+                    // If IP is empty, it's waiting for peer connecting me
+                    if(string_content.isEmpty()) {
+                        showToast("Waiting for someone's connection");
+                    }
+                }
+                else {
+                    intent.putExtra("signaling", "server");
+
+                    // Check whether the room name is empty
+                    if(string_content.isEmpty()) {
+                        showToast("The room name can't be empty.");
+                        return;
+                    }
+                }
+
+                intent.putExtra("speaker", SpeakerEnable);
+                intent.putExtra("data",string_content);
+
+                startActivity(intent);
             }
         });
 
@@ -190,7 +201,7 @@ public class CallActivity extends AppCompatActivity {
         });
     }
 
-    public static String getLocalIpAddress() {
+    public String getLocalIpAddress() {
         try {
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
                 NetworkInterface intf = en.nextElement();
@@ -198,7 +209,8 @@ public class CallActivity extends AppCompatActivity {
                     InetAddress inetAddress = enumIpAddr.nextElement();
                     if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
                         Log.d("addr",inetAddress.getHostAddress());
-                        //return inetAddress.getHostAddress();
+                        ip_text.setText("IP: "+inetAddress.getHostAddress());
+                        return inetAddress.getHostAddress();
                     }
                 }
             }
@@ -231,10 +243,12 @@ public class CallActivity extends AppCompatActivity {
         switch(view.getId()) {
             case R.id.by_server: {
                 input_type.setText("Room Name :");
+                input_text.setText("");
                 break;
             }
             case R.id.by_direct: {
                 input_type.setText("Remote IP :");
+                input_text.setText("");
                 break;
             }
         }
