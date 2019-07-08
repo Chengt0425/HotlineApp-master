@@ -346,15 +346,31 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         viewframes.addView(surfaceviewrenderer);
     }
 
-    private void adjustViewsLayout(int num){
-        int adjusthight = screenhight/num;
-        for(int i=1; i<=num; i++){
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,adjusthight);
-            if(i==1) lp.gravity = Gravity.TOP;
-            else if(i==2) lp.gravity = Gravity.BOTTOM;
-            viewslist.get(i).setLayoutParams(lp);
+    private void adjustViewsLayout(int num) {
+        switch (num) {
+            case 2: {
+                int adjustHight = screenhight/2;
+                for(int i=1; i<=num; i++) {
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,adjustHight);
+                    if(i==1) lp.gravity = Gravity.TOP;
+                    else if(i==2) lp.gravity = Gravity.BOTTOM;
+                    viewslist.get(i).setLayoutParams(lp);
+                }
+                break;
+            }
+            case 3: {
+                int adjustHight = screenhight/2;
+                int adjustWidth = screenwidth/2;
+                for(int i=1; i<=num; i++) {
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(adjustWidth,adjustHight);
+                    if(i==1) lp.gravity = Gravity.TOP | Gravity.START;
+                    else if(i==2) lp.gravity = Gravity.TOP | Gravity.END;
+                    else lp.gravity = Gravity.BOTTOM | Gravity.CENTER;
+                    viewslist.get(i).setLayoutParams(lp);
+                }
+                break;
+            }
         }
-
     }
 
     private void CloseViews(final int index){
