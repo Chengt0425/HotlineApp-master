@@ -58,20 +58,6 @@ io.sockets.on('connection', function(socket) {
 			numClients = Object.keys(room_object).length;
 			log('[Server]', 'Room ' + room + ' now has ' + numClients + ' client(s)');
 		}
-		/*
-		} else if (numClients === 1) {
-			log('[Server]', 'Client ' + socket.id + ' joined room ' + room);
-			io.sockets.in(room).emit('join', room);
-			socket.join(room);
-			socket.emit('joined', room);
-			numClients = Object.keys(room_object).length;
-			log('[Server]', 'Room ' + room + ' now has ' + numClients + ' client(s)');
-			//io.sockets.in(room).emit('ready');
-		} else { // max 2 clients
-			socket.emit('full', room);
-			log('[Server]', 'Room ' + room + ' is full.');
-		}
-		*/
 	});
 
 	socket.on('bye', function(room){

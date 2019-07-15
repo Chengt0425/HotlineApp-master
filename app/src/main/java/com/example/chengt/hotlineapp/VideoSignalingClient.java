@@ -105,9 +105,6 @@ class VideoSignalingClient {
         }
         else {
             Signal_by_Server();
-
-            //Inform everyone that I'm in
-            emitMessage("handshake request");
         }
     }
 
@@ -151,12 +148,6 @@ class VideoSignalingClient {
                 callback.onCreatedRoom();
             });
 
-            // room is full event
-            socket.on("full", args -> {
-                Log.d(TAG, "full call() called with: args = [" + Arrays.toString(args) + "]");
-                callback.roomIsFull(roomName);
-            });
-
             // peer joined event
             socket.on("join",  args -> {
                 Log.d(TAG, "join call() called with: args = [" + Arrays.toString(args) + "]");
@@ -172,6 +163,9 @@ class VideoSignalingClient {
                 identification = (String)args[0];
                 Log.d(TAG, "socketid:"+identification);
                 callback.onJoinedRoom();
+
+                //Inform everyone that I'm in
+                emitMessage("handshake request");
             });
 
             // log event
@@ -182,28 +176,22 @@ class VideoSignalingClient {
             // bye event
             socket.on("bye", args -> {
                 Log.d(TAG, "bye call() called with: args = [" + Arrays.toString(args) + "]");
-                callback.onRemoteHangUp((String) args[0], (String) args[1]);
+                String sid = (String) args[0];
+                callback.onRemoteHangUp(sid);
             });
 
             // messages - SDP and ICE candidates are transferred through this
             socket.on("message", args -> {
                 Log.d(TAG, "message call() called with: args = [" + Arrays.toString(args) + "]");
-                if (args[0] instanceof String) {
-                    Log.d(TAG, "String received :: " + args[0]);
-                    String data = (String) args[0];
-                    String sid = (String) args[1];
-                    if (data.equalsIgnoreCase("handshake request")) {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    Log.d(TAG, "JSONObject received :: " + data.toString());
+                    String type = data.getString("type");
+                    String sid = data.getString("sender");
+                    if(type.equalsIgnoreCase("message")) {
                         callback.onTryToStart(sid);
                     }
-                    if (data.equalsIgnoreCase("bye")) {
-                        callback.onRemoteHangUp(data, sid);
-                    }
-                } else if (args[0] instanceof JSONObject) {
-                    try {
-                        JSONObject data = (JSONObject) args[0];
-                        Log.d(TAG, "JSONObject received :: " + data.toString());
-                        String type = data.getString("type");
-                        String sid = data.getString("sender");
+                    else {
                         String rid = data.getString("receiver");
                         if (type.equalsIgnoreCase("offer") && rid.equals(identification)) {
                             callback.onOfferReceived(data, sid);
@@ -212,9 +200,9 @@ class VideoSignalingClient {
                         } else if (type.equalsIgnoreCase("candidate") && rid.equals(identification)) {
                             callback.onIceCandidateReceived(data, sid);
                         }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
                     }
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
             });
 
@@ -230,24 +218,16 @@ class VideoSignalingClient {
 
     void emitMessage(String message) {
         Log.d(TAG, "emitMessage() called with: message = [" + message + "]");
-        socket.emit("message", roomName, message);
-        /*
-        if(signaling.equals("direct")) {
-            try {
-                JSONObject object = new JSONObject();
-                object.put("type", "msg");
-                object.put("content", message);
-                sender.println(object.toString());
-                sender.flush();
-            }
-            catch(JSONException e) {
-                Log.d(TAG, e.toString());
-            }
+
+        JSONObject object = new JSONObject();
+        try {
+            object.put("type", "message");
+            object.put("sender", identification);
+            object.put("msg", message);
+        } catch (JSONException e) {
+            e.toString();
         }
-        else {
-            socket.emit("message", roomName, message);
-        }
-        */
+        socket.emit("message", roomName, object);
     }
 
     void emitMessage(SessionDescription message, String recvid, int num) {
@@ -450,7 +430,7 @@ class VideoSignalingClient {
 
                     //remote is closed the socket connect to here
                     if(s == null) {
-                        callback.onRemoteHangUp("bye", IP);
+                        callback.onRemoteHangUp(IP);
                         break;
                     }
                     else {
@@ -471,7 +451,7 @@ class VideoSignalingClient {
                             }
                         }
                         else if(type.equals("bye")) {
-                            callback.onRemoteHangUp(type, IP);
+                            callback.onRemoteHangUp(IP);
                             break;
                         }
                         else {
@@ -504,7 +484,7 @@ class VideoSignalingClient {
     }
 
     interface VideoSignalingInterface {
-        void onRemoteHangUp(String msg, String id);
+        void onRemoteHangUp(String id);
         void onOfferReceived(JSONObject data, String id);
         void onAnswerReceived(JSONObject data, String id);
         void onIceCandidateReceived(JSONObject data, String id);

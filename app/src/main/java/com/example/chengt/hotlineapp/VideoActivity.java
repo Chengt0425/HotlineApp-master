@@ -164,7 +164,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     @Override
-    public void onRemoteHangUp(String msg, String id) {
+    public void onRemoteHangUp(String id) {
         showToast("Remote peer hung up");
         runOnUiThread(new Runnable() {
             @Override
