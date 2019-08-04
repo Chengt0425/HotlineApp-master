@@ -1,15 +1,10 @@
 package com.example.chengt.hotlineapp;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -39,10 +34,7 @@ import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 
 public class VideoActivity extends AppCompatActivity implements View.OnClickListener, VideoSignalingClient.VideoSignalingInterface {
     PeerConnectionFactory peerConnectionFactory;
@@ -86,20 +78,19 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         else audioManager.setSpeakerphoneOn(false);
         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
-        //WebRtcAudioUtils.
 
-        PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.179:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
+        PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.181:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
         peerIceServers.add(peerIceServer);
-        PeerConnection.IceServer peerIceServer_stun = PeerConnection.IceServer.builder("stun:140.113.167.179:3478").createIceServer();
+        PeerConnection.IceServer peerIceServer_stun = PeerConnection.IceServer.builder("stun:140.113.167.181:3478").createIceServer();
         peerIceServers.add(peerIceServer_stun);
+        PeerConnection.IceServer peerIceServer_stun2 = PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer();
+        peerIceServers.add(peerIceServer_stun2);
 
         Intent intent = this.getIntent();
         String signal_type = intent.getStringExtra("signaling");
         String data = intent.getStringExtra("data");
         String id = intent.getStringExtra("ip");
         VideoSignalingClient.getInstance().init(data, signal_type, id, this);
-        //VideoSignalingClient.getInstance().setRoomName(roomName);
-        //VideoSignalingClient.getInstance().init(this);
 
         getScreenSize();
 
@@ -238,6 +229,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     private void initConfiguration(){
+        Log.d("iceserver", "ICE: " + peerIceServers.size());
         rtcConfig = new PeerConnection.RTCConfiguration(peerIceServers);
         //TCP candidates are only useful when connecting to a server that supports ICE-TCP.
         rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
@@ -348,6 +340,11 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     private void adjustViewsLayout(int num) {
         switch (num) {
+            case 1: {
+                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(screenwidth,screenhight);
+                viewslist.get(1).setLayoutParams(lp);
+                break;
+            }
             case 2: {
                 int adjustHight = screenhight/2;
                 for(int i=1; i<=num; i++) {
@@ -365,7 +362,10 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                     FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(adjustWidth,adjustHight);
                     if(i==1) lp.gravity = Gravity.TOP | Gravity.START;
                     else if(i==2) lp.gravity = Gravity.TOP | Gravity.END;
-                    else lp.gravity = Gravity.BOTTOM | Gravity.CENTER;
+                    else {
+                        lp.width = screenwidth;
+                        lp.gravity = Gravity.BOTTOM;
+                    }
                     viewslist.get(i).setLayoutParams(lp);
                 }
                 break;
@@ -436,9 +436,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         super.onDestroy();
         VideoSignalingClient.getInstance().close();
     }
-
-    @Override
-    public void roomIsFull(String roomName) { showToast("Room " + roomName + " is full"); }
 
     private VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
         final String[] deviceNames = enumerator.getDeviceNames();

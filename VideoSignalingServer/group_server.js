@@ -62,6 +62,6 @@ io.sockets.on('connection', function(socket) {
 
 	socket.on('bye', function(room){
 		log('[Server]', 'Client ' + socket.id + ' left room ' + room);
-		socket.broadcast.to(room).emit('message', 'bye', socket.id);
+		socket.broadcast.to(room).emit(bye', socket.id);
 	});
 });

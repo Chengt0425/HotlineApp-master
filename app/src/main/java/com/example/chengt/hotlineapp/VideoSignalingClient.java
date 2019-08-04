@@ -40,8 +40,6 @@ class VideoSignalingClient {
     private String signaling = null;
     private String identification = null;
     boolean isChannelReady = false; // Does room have two or more peers?
-    //boolean isInitiator = false; // Have room been created?
-    //boolean isStarted = false; // Have peerconnection been created?
     boolean isInRoom = false; // Is in the any room?
     private VideoSignalingInterface callback;
 
@@ -493,7 +491,6 @@ class VideoSignalingClient {
         void onJoinedRoom();
         void onNewPeerJoined();
         void onGetIPList(String id);
-        void roomIsFull(String roomName);
         void showToast(String msg);
     }
 }

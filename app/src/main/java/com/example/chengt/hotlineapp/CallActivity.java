@@ -40,7 +40,7 @@ public class CallActivity extends AppCompatActivity {
     EditText input_text;
     TextView input_type;
     TextView ip_text;
-    boolean SpeakerEnable = false;
+    boolean SpeakerEnable = true;
 
     boolean isRecording = false;
     private MediaRecorder myrecorder;
@@ -57,22 +57,35 @@ public class CallActivity extends AppCompatActivity {
         input_type = findViewById(R.id.input_type);
         ip_text = findViewById(R.id.ip_addr);
         call = findViewById(R.id.call);
+        /*
         start_record = findViewById(R.id.start_record);
         stop_record = findViewById(R.id.stop_record);
+        */
         speaker = findViewById(R.id.switch1);
+
+
 
         String local_ip = getLocalIpAddress();
 
         //Ask for permissions.
         int cmrpermission = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         int rcdpermission = ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO);
-        int writepermission = ContextCompat.checkSelfPermission(this,Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        //int writepermission = ContextCompat.checkSelfPermission(this,Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        /*
         if (cmrpermission != PackageManager.PERMISSION_GRANTED &&
                 rcdpermission != PackageManager.PERMISSION_GRANTED &&
                 writepermission != PackageManager.PERMISSION_GRANTED
             ){
             ActivityCompat.requestPermissions(CallActivity.this,
                     new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    1);
+        }
+        */
+        if (cmrpermission != PackageManager.PERMISSION_GRANTED &&
+                rcdpermission != PackageManager.PERMISSION_GRANTED
+        ){
+            ActivityCompat.requestPermissions(CallActivity.this,
+                    new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO},
                     1);
         }
 
@@ -130,6 +143,7 @@ public class CallActivity extends AppCompatActivity {
             }
         });
 
+        /*
         start_record.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -191,6 +205,7 @@ public class CallActivity extends AppCompatActivity {
                 myhandler.removeCallbacks(addAmplitude);
             }
         });
+        */
     }
 
     public void showToast(final String msg) {
@@ -220,6 +235,7 @@ public class CallActivity extends AppCompatActivity {
         return null;
     }
 
+    /*
     Runnable addAmplitude = new Runnable() {
         @Override
         public void run() {
@@ -238,6 +254,7 @@ public class CallActivity extends AppCompatActivity {
             new File(Environment.getExternalStorageDirectory()+"/Recordings").mkdir();
         }
     }
+    */
 
     public void onSelect(View view) {
         switch(view.getId()) {
