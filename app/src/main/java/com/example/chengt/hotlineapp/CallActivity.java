@@ -57,13 +57,12 @@ public class CallActivity extends AppCompatActivity {
         input_type = findViewById(R.id.input_type);
         ip_text = findViewById(R.id.ip_addr);
         call = findViewById(R.id.call);
+
+        speaker = findViewById(R.id.switch1);
         /*
         start_record = findViewById(R.id.start_record);
         stop_record = findViewById(R.id.stop_record);
         */
-        speaker = findViewById(R.id.switch1);
-
-
 
         String local_ip = getLocalIpAddress();
 
@@ -89,15 +88,18 @@ public class CallActivity extends AppCompatActivity {
                     1);
         }
 
+        Log.d(TAG, "check the process log");
+
         call.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String string_content = input_text.getText().toString();
 
-                RadioGroup callType = findViewById(R.id.callType);
+                //RadioGroup callType = findViewById(R.id.callType);
                 RadioGroup signalType = findViewById(R.id.signal_type);
                 Intent intent = new Intent();
 
+                /*
                 //Get call type from radio group
                 if (callType.getCheckedRadioButtonId() == R.id.radio_video) {
                     intent.setClass(CallActivity.this, VideoActivity.class);
@@ -105,6 +107,9 @@ public class CallActivity extends AppCompatActivity {
                 else {
                     intent.setClass(CallActivity.this, TextActivity.class);
                 }
+                */
+                // Only Video conference
+                intent.setClass(CallActivity.this, VideoActivity.class);
 
                 //Get signaling type from radio group
                 if (signalType.getCheckedRadioButtonId() == R.id.by_direct) {
@@ -127,7 +132,7 @@ public class CallActivity extends AppCompatActivity {
                 }
 
                 intent.putExtra("speaker", SpeakerEnable);
-                intent.putExtra("data",string_content);
+                intent.putExtra("data", string_content);
 
                 startActivity(intent);
             }

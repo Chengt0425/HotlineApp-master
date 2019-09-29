@@ -39,6 +39,7 @@
         android:layout_height="wrap_content"
         android:paddingLeft="130dp">
 
+        <!--
         <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
             android:id="@+id/callType"
             android:layout_width="wrap_content"
@@ -59,13 +60,14 @@
                 android:layout_height="wrap_content"
                 android:text="Text" />
         </RadioGroup>
+        -->
 
         <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
             android:id="@+id/signal_type"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
             <RadioButton
                 android:id="@+id/by_server"
@@ -94,6 +96,7 @@
         android:layout_margin="5sp"
         android:text="Call" />
 
+
     <Switch
         android:id="@+id/switch1"
         android:layout_width="117dp"
@@ -104,7 +107,7 @@
         android:textColorLink="@color/colorPrimaryDark"
         android:textSize="18sp" />
 
-    <!--
+        <!--
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

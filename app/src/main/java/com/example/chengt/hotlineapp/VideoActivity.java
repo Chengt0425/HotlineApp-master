@@ -168,7 +168,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Signaling Callback - called when remote peer sends offer.
     @Override
     public void onOfferReceived(final JSONObject data, String id) {
-        showToast("Received offer");
         if (ID_list.indexOf(id) == -1){
             //Not the room creator and have no peerconnection object
             createPeerConnection(id);
@@ -189,7 +188,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onAnswerReceived(JSONObject data, String id) {
         Log.d("sdpflow", "Received answer from:"+id);
-        showToast("Received answer");
         try {
             int index = ID_list.indexOf(id);
             if(index == -1) showToast("Received illegal ID's answer:"+id);
@@ -203,7 +201,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Remote Ice candidate received.
     @Override
     public void onIceCandidateReceived(JSONObject data, String id) {
-        showToast("Received remote IceCandidate");
+        Log.d("sdpflow", "Receive IceCandidate");
+        Log.d("sdpflow", data.toString());
         try {
             int index = ID_list.indexOf(id);
             if(index == -1) showToast("Received illegal ID's IceCandidate:"+id);
@@ -259,6 +258,14 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 super.onAddStream(mediaStream);
                 gotRemoteStream(mediaStream, id);
             }
+
+            @Override
+            public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
+                super.onIceConnectionChange(iceConnectionState);
+                if(iceConnectionState.toString().equalsIgnoreCase("failed")){
+                    IceRestart(id);
+                }
+            }
         });
 
         //add local stream to localpeer
@@ -302,6 +309,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Received remote peer's media stream. We will get the first video track and render it.
     private void gotRemoteStream(MediaStream stream, String id) {
         //We have remote video stream. Add to the render.
+        //final AudioTrack audioTrack = stream.audioTracks.get(0);
+
         final VideoTrack videoTrack = stream.videoTracks.get(0);
         runOnUiThread(() -> {
             try {
@@ -313,6 +322,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 e.printStackTrace();
             }
         });
+
     }
 
     //Received local ice candidate. Send it to remote peer through signaling for negotiation.
@@ -486,4 +496,22 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         screenhight = size.y;
     }
 
+    // When IceConnection state change to "Failed", call this function to restart ICE
+    public void IceRestart(final String id){
+        Log.d("IceFailed", "Ice restart");
+        final int index = ID_list.indexOf(id);
+
+        MediaConstraints restartCon = sdpConstraints;
+        restartCon.mandatory.add(new MediaConstraints.KeyValuePair("IceRestart", "true"));
+
+        localPeers.get(index).createOffer(new VideoCustomSdpObserver("localCreateOffer") {
+            @Override
+            public void onCreateSuccess(SessionDescription sessionDescription) {
+                super.onCreateSuccess(sessionDescription);
+                localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
+                Log.d("onCreateSuccess", "SignalingClient emit");
+                VideoSignalingClient.getInstance().emitMessage(sessionDescription, id, ID_list.size());
+            }
+        }, restartCon);
+    }
 }
