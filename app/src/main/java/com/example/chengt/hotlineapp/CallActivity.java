@@ -97,21 +97,13 @@ public class CallActivity extends AppCompatActivity {
 
                 //RadioGroup callType = findViewById(R.id.callType);
                 RadioGroup signalType = findViewById(R.id.signal_type);
+                RadioGroup referenceType = findViewById(R.id.reference_type);
                 Intent intent = new Intent();
 
-                /*
-                //Get call type from radio group
-                if (callType.getCheckedRadioButtonId() == R.id.radio_video) {
-                    intent.setClass(CallActivity.this, VideoActivity.class);
-                }
-                else {
-                    intent.setClass(CallActivity.this, TextActivity.class);
-                }
-                */
                 // Only Video conference
                 intent.setClass(CallActivity.this, VideoActivity.class);
 
-                //Get signaling type from radio group
+                //Get signaling type
                 if (signalType.getCheckedRadioButtonId() == R.id.by_direct) {
                     intent.putExtra("signaling", "direct");
                     intent.putExtra("ip", local_ip);
@@ -129,6 +121,14 @@ public class CallActivity extends AppCompatActivity {
                         showToast("The room name can't be empty.");
                         return;
                     }
+                }
+
+                //Get reference type
+                if  (referenceType.getCheckedRadioButtonId() == R.id.video_ref) {
+                    intent.putExtra("reference", true);
+                }
+                else {
+                    intent.putExtra("reference", false);
                 }
 
                 intent.putExtra("speaker", SpeakerEnable);

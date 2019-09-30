@@ -47,6 +47,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     AudioTrack localAudioTrack;
     AudioManager audioManager;
 
+    int reset_audio_mode;
+    boolean videoOn;
 
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
     FrameLayout viewframes;
@@ -72,10 +74,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
 
         //Change audio output to the speaker.
-        boolean SpeakerEnable = getIntent().getBooleanExtra("speaker",false);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        boolean SpeakerEnable = getIntent().getBooleanExtra("speaker",false);
         if(SpeakerEnable) audioManager.setSpeakerphoneOn(true);
         else audioManager.setSpeakerphoneOn(false);
+
+        reset_audio_mode = audioManager.getMode();
         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
 
@@ -92,20 +96,38 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         String id = intent.getStringExtra("ip");
         VideoSignalingClient.getInstance().init(data, signal_type, id, this);
 
-        getScreenSize();
-
-        start();
-    }
-
-    public void start() {
-        //Initialize PeerConnectionFactory Globals.
-        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(this).setEnableVideoHwAcceleration(true).createInitializationOptions());
-
-        //Create a new PeerConnectionFactory instance.
-        peerConnectionFactory = PeerConnectionFactory.builder().createPeerConnectionFactory();
-
         //Init RTC configuration
         initConfiguration();
+
+        // Get the previous selection of reference type and start setting
+        videoOn = intent.getBooleanExtra("reference", true);
+        if(videoOn) Video_Start();
+        else Audio_Start();
+    }
+
+    private void Audio_Start() {
+        //Create MediaConstraints - Will be useful for specifying video and audio constraints.
+        audioConstraints = new MediaConstraints();
+
+        //Create sdpConstraints.
+        sdpConstraints = new MediaConstraints();
+        sdpConstraints.mandatory.add(new MediaConstraints.KeyValuePair("offerToReceiveAudio", "true"));
+
+        //Create an AudioSource instance.
+        audioSource = peerConnectionFactory.createAudioSource(audioConstraints);
+        localAudioTrack = peerConnectionFactory.createAudioTrack("101", audioSource);
+
+        hangup = findViewById(R.id.end_call);
+        hangup.setOnClickListener(this);
+        addViews(viewslist.size());
+
+        hangup.setEnabled(true);
+        VideoSignalingClient.getInstance().Start();
+    }
+
+    private void Video_Start() {
+
+        GetScreenSize();
 
         //Create a VideoCapturer instance.
         VideoCapturer videoCapturerAndroid;
@@ -228,15 +250,25 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     private void initConfiguration(){
-        Log.d("iceserver", "ICE: " + peerIceServers.size());
+        //Initialize PeerConnectionFactory Globals.
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(this).setEnableVideoHwAcceleration(true).createInitializationOptions());
+
+        //Create a new PeerConnectionFactory instance.
+        peerConnectionFactory = PeerConnectionFactory.builder().createPeerConnectionFactory();
+
+        // Set PC's ICE server
+        // Log.d("iceserver", "ICE: " + peerIceServers.size());
         rtcConfig = new PeerConnection.RTCConfiguration(peerIceServers);
+
         //TCP candidates are only useful when connecting to a server that supports ICE-TCP.
         rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
         rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
         rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
         rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
+
         //Use ECDSA encryption.
         rtcConfig.keyType = PeerConnection.KeyType.ECDSA;
+
         //Enable DTLS-SRTP.
         rtcConfig.enableDtlsSrtp = true;
     }
@@ -256,7 +288,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             public void onAddStream(MediaStream mediaStream) {
                 showToast("Received remote stream");
                 super.onAddStream(mediaStream);
-                gotRemoteStream(mediaStream, id);
+                gotRemoteStream(mediaStream);
             }
 
             @Override
@@ -271,7 +303,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         //add local stream to localpeer
         MediaStream stream = peerConnectionFactory.createLocalMediaStream("102");
         stream.addTrack(localAudioTrack);
-        stream.addTrack(localVideoTrack);
+        if(videoOn) stream.addTrack(localVideoTrack);
         peer.addStream(stream);
         localPeers.add(peer);
     }
@@ -284,6 +316,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 for(PeerConnection peers : localPeers) peers.close();
                 localPeers.clear();
                 VideoSignalingClient.getInstance().close();
+                AttributesReset();
                 finish();
             }
             //hangup by one of remote
@@ -298,6 +331,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 if(localPeers.isEmpty()){
                     CloseViews(0);
                     VideoSignalingClient.getInstance().close();
+                    AttributesReset();
                     finish();
                 }
             }
@@ -307,21 +341,23 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     //Received remote peer's media stream. We will get the first video track and render it.
-    private void gotRemoteStream(MediaStream stream, String id) {
+    private void gotRemoteStream(MediaStream stream) {
         //We have remote video stream. Add to the render.
-        //final AudioTrack audioTrack = stream.audioTracks.get(0);
+        final AudioTrack audioTrack = stream.audioTracks.get(0);
 
-        final VideoTrack videoTrack = stream.videoTracks.get(0);
-        runOnUiThread(() -> {
-            try {
-                int peers = viewslist.size();
-                addViews(peers);
-                adjustViewsLayout(peers);
-                videoTrack.addSink(viewslist.get(peers));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+        if(!stream.videoTracks.isEmpty()) {
+            final VideoTrack videoTrack = stream.videoTracks.get(0);
+            runOnUiThread(() -> {
+                try {
+                    int peers = viewslist.size();
+                    addViews(peers);
+                    adjustViewsLayout(peers);
+                    videoTrack.addSink(viewslist.get(peers));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
 
     }
 
@@ -348,6 +384,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         viewframes.addView(surfaceviewrenderer);
     }
 
+    //Configure the position of screen
     private void adjustViewsLayout(int num) {
         switch (num) {
             case 1: {
@@ -488,7 +525,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         );
     }
 
-    private void getScreenSize() {
+    private void GetScreenSize() {
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
         display.getSize(size);
@@ -513,5 +550,10 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 VideoSignalingClient.getInstance().emitMessage(sessionDescription, id, ID_list.size());
             }
         }, restartCon);
+    }
+
+    private void AttributesReset(){
+        audioManager.setSpeakerphoneOn(true);
+        audioManager.setMode(reset_audio_mode);
     }
 }
