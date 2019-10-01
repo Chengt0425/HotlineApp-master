@@ -188,8 +188,7 @@ class VideoSignalingClient {
                     String sid = data.getString("sender");
                     if(type.equalsIgnoreCase("message")) {
                         callback.onTryToStart(sid);
-                    }
-                    else {
+                    } else {
                         String rid = data.getString("receiver");
                         if (type.equalsIgnoreCase("offer") && rid.equals(identification)) {
                             callback.onOfferReceived(data, sid);
@@ -250,8 +249,7 @@ class VideoSignalingClient {
         if(signaling.equals("direct")) {
             streamMap.get(recvid).println(object.toString());
             streamMap.get(recvid).flush();
-        }
-        else {
+        } else {
             socket.emit("message", roomName, object);
         }
     }
@@ -262,8 +260,7 @@ class VideoSignalingClient {
             object.put("type", "participants");
             object.put("receiver", recvid);
             object.put("participants", new JSONArray(list));
-        }
-        catch (JSONException e) {
+        } catch (JSONException e) {
             Log.d(TAG, e.toString());
         }
         streamMap.get(recvid).println(object.toString());
@@ -286,8 +283,7 @@ class VideoSignalingClient {
         if(signaling.equals("direct")) {
             streamMap.get(recvid).println(object.toString());
             streamMap.get(recvid).flush();
-        }
-        else {
+        } else {
             socket.emit("message", roomName, object);
         }
     }
@@ -306,12 +302,10 @@ class VideoSignalingClient {
                         s.close();
                     }
                 }
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 Log.d(TAG, e.toString());
             }
-        }
-        else {
+        } else {
             if (socket != null) {
                 if (isInRoom) {
                     socket.emit("bye", roomName);
@@ -337,8 +331,7 @@ class VideoSignalingClient {
         public void run() {
             try {
                 myServerSocket = new ServerSocket(7777);
-            }
-            catch(IOException e) {
+            } catch(IOException e) {
                 Log.d(ServerTAG,e.toString());
             }
 
@@ -352,8 +345,7 @@ class VideoSignalingClient {
 
                     socketList.add(dsocket);
                     myExecutor.execute(new ProcessMessage(dsocket));
-                }
-                catch(IOException e) {
+                } catch(IOException e) {
                     Log.d(ServerTAG,e.toString());
                 }
             }
@@ -378,8 +370,7 @@ class VideoSignalingClient {
         public void run() {
             try {
                 dsocket = new java.net.Socket(IP, 7777);
-            }
-            catch(IOException e) {
+            } catch(IOException e) {
                 Log.d(ClientTAG, e.toString());
             }
             if(dsocket!=null) {
@@ -387,8 +378,7 @@ class VideoSignalingClient {
 
                 socketList.add(dsocket);
                 new ProcessMessage(dsocket, IP).run();
-            }
-            else {
+            } else {
                 callback.showToast("Fail to connect " + IP);
             }
         }
@@ -430,8 +420,7 @@ class VideoSignalingClient {
                     if(s == null) {
                         callback.onRemoteHangUp(IP);
                         break;
-                    }
-                    else {
+                    } else {
                         JSONObject object = new JSONObject(s);
                         Log.d(TAG, "JSONObject received :: " + object.toString());
 
@@ -447,12 +436,10 @@ class VideoSignalingClient {
                                     clientThread.start();
                                 }
                             }
-                        }
-                        else if(type.equals("bye")) {
+                        } else if(type.equals("bye")) {
                             callback.onRemoteHangUp(IP);
                             break;
-                        }
-                        else {
+                        } else {
                             String rid = object.getString("receiver");
                             if(!rid.equals(identification)) {
                                 continue;
@@ -474,8 +461,7 @@ class VideoSignalingClient {
                         }
                     }
                 }
-            }
-            catch(IOException|JSONException e) {
+            } catch(IOException|JSONException e) {
                 Log.d(TAG, e.toString());
             }
         }

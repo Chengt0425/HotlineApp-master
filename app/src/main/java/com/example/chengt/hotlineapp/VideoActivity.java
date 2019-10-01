@@ -99,6 +99,9 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         //Init RTC configuration
         initConfiguration();
 
+        // Setting screenwidth and screenhight
+        GetScreenSize();
+
         // Get the previous selection of reference type and start setting
         videoOn = intent.getBooleanExtra("reference", true);
         if(videoOn) Video_Start();
@@ -106,12 +109,13 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     private void Audio_Start() {
-        //Create MediaConstraints - Will be useful for specifying video and audio constraints.
+        //Create MediaConstraints - Will be useful for specifying audio constraints.
         audioConstraints = new MediaConstraints();
 
         //Create sdpConstraints.
         sdpConstraints = new MediaConstraints();
         sdpConstraints.mandatory.add(new MediaConstraints.KeyValuePair("offerToReceiveAudio", "true"));
+        sdpConstraints.mandatory.add(new MediaConstraints.KeyValuePair("offerToReceiveVideo", "true"));
 
         //Create an AudioSource instance.
         audioSource = peerConnectionFactory.createAudioSource(audioConstraints);
@@ -119,16 +123,13 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
         hangup = findViewById(R.id.end_call);
         hangup.setOnClickListener(this);
-        addViews(viewslist.size());
+        addMyView();
 
         hangup.setEnabled(true);
         VideoSignalingClient.getInstance().Start();
     }
 
     private void Video_Start() {
-
-        GetScreenSize();
-
         //Create a VideoCapturer instance.
         VideoCapturer videoCapturerAndroid;
         videoCapturerAndroid = createCameraCapturer(new Camera1Enumerator(false));
@@ -160,7 +161,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
         hangup = findViewById(R.id.end_call);
         hangup.setOnClickListener(this);
-        addViews(viewslist.size());
+        addMyView();
 
         hangup.setEnabled(true);
         VideoSignalingClient.getInstance().Start();
@@ -170,7 +171,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.end_call: {
-                hangup(null);
+                Hangup(null);
                 break;
             }
         }
@@ -182,7 +183,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                hangup(id);
+                Hangup(id);
             }
         });
     }
@@ -241,7 +242,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onTryToStart(String id) {
         //If id is in ID_list, needn't start again
-        if (localVideoTrack != null && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1) {
+        if ((!videoOn || localVideoTrack != null) && VideoSignalingClient.getInstance().isChannelReady && ID_list.indexOf(id) == -1) {
             createPeerConnection(id);
             runOnUiThread(()->{
                 doCall(id);
@@ -279,7 +280,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         PeerConnection peer = peerConnectionFactory.createPeerConnection(rtcConfig, new VideoCustomPeerConnectionObserver("localPeerConnection"){
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
-                //Log.d("sdpflow", "Received local icecandidate");
                 super.onIceCandidate(iceCandidate);
                 sendIceCandidate(iceCandidate, id);
             }
@@ -309,7 +309,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     //close the peerconnection with id and remove it
-    private void hangup(String id) {
+    private void Hangup(String id) {
         try {
             //hangup by local
             if(id == null) {
@@ -318,9 +318,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 VideoSignalingClient.getInstance().close();
                 AttributesReset();
                 finish();
-            }
-            //hangup by one of remote
-            else{
+            } else{ //hangup by one of remote
                 int bye_index = ID_list.indexOf(id);
                 ID_list.remove(bye_index);
                 CloseViews(bye_index+1);
@@ -343,9 +341,8 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     //Received remote peer's media stream. We will get the first video track and render it.
     private void gotRemoteStream(MediaStream stream) {
         //We have remote video stream. Add to the render.
-        final AudioTrack audioTrack = stream.audioTracks.get(0);
-
-        if(!stream.videoTracks.isEmpty()) {
+        if(stream.videoTracks.size() > 0) {
+            Log.d("remotestream", "Get remote video stream");
             final VideoTrack videoTrack = stream.videoTracks.get(0);
             runOnUiThread(() -> {
                 try {
@@ -353,6 +350,16 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                     addViews(peers);
                     adjustViewsLayout(peers);
                     videoTrack.addSink(viewslist.get(peers));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        } else {
+            runOnUiThread(() -> {
+                try {
+                    int peers = viewslist.size();
+                    addViews(peers);
+                    adjustViewsLayout(peers);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -367,19 +374,33 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         VideoSignalingClient.getInstance().emitIceCandidate(iceCandidate, id);
     }
 
+    private void addMyView() {
+        SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
+        surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
+
+        // Video conference mode
+        if(videoOn) {
+            surfaceviewrenderer.setVisibility(View.VISIBLE);
+
+            FrameLayout.LayoutParams lp;
+            lp = new FrameLayout.LayoutParams(dpToPx(120), dpToPx(150));
+            lp.gravity = Gravity.BOTTOM|Gravity.END;
+            surfaceviewrenderer.setLayoutParams(lp);
+            surfaceviewrenderer.setZOrderMediaOverlay(true);
+            surfaceviewrenderer.setMirror(true);
+
+            localVideoTrack.addSink(surfaceviewrenderer);
+        }
+
+        viewslist.add(surfaceviewrenderer);
+        viewframes.addView(surfaceviewrenderer);
+    }
+
     private void addViews(final int index) {
         SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
         surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
         surfaceviewrenderer.setVisibility(View.VISIBLE);
-        if(index == 0){
-            FrameLayout.LayoutParams lp;
-            lp = new FrameLayout.LayoutParams(dpToPx(120), dpToPx(150));
-            lp.gravity = Gravity.BOTTOM|Gravity.END;
-            surfaceviewrenderer.setZOrderMediaOverlay(true);
-            surfaceviewrenderer.setMirror(true);
-            localVideoTrack.addSink(surfaceviewrenderer);
-            surfaceviewrenderer.setLayoutParams(lp);
-        }
+
         viewslist.add(surfaceviewrenderer);
         viewframes.addView(surfaceviewrenderer);
     }
@@ -535,7 +556,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     // When IceConnection state change to "Failed", call this function to restart ICE
     public void IceRestart(final String id){
-        Log.d("IceFailed", "Ice restart");
         final int index = ID_list.indexOf(id);
 
         MediaConstraints restartCon = sdpConstraints;

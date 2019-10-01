@@ -88,8 +88,6 @@ public class CallActivity extends AppCompatActivity {
                     1);
         }
 
-        Log.d(TAG, "check the process log");
-
         call.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
