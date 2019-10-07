@@ -281,14 +281,14 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
                 super.onIceCandidate(iceCandidate);
-                sendIceCandidate(iceCandidate, id);
+                SendIceCandidate(iceCandidate, id);
             }
 
             @Override
             public void onAddStream(MediaStream mediaStream) {
                 showToast("Received remote stream");
                 super.onAddStream(mediaStream);
-                gotRemoteStream(mediaStream);
+                GetRemoteStream(mediaStream);
             }
 
             @Override
@@ -339,7 +339,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     //Received remote peer's media stream. We will get the first video track and render it.
-    private void gotRemoteStream(MediaStream stream) {
+    private void GetRemoteStream(MediaStream stream) {
         //We have remote video stream. Add to the render.
         if(stream.videoTracks.size() > 0) {
             Log.d("remotestream", "Get remote video stream");
@@ -355,6 +355,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 }
             });
         } else {
+            // Audio-only mode
             runOnUiThread(() -> {
                 try {
                     int peers = viewslist.size();
@@ -369,7 +370,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     }
 
     //Received local ice candidate. Send it to remote peer through signaling for negotiation.
-    private void sendIceCandidate(IceCandidate iceCandidate, String id) {
+    private void SendIceCandidate(IceCandidate iceCandidate, String id) {
         //We have received ice candidate We can set it to the other peer.
         VideoSignalingClient.getInstance().emitIceCandidate(iceCandidate, id);
     }
@@ -492,6 +493,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     @Override
     public void onNewPeerJoined() {
         showToast("Remote peer joined");
+    }
+
+    @Override
+    public void onReplaceID(String oid, String nid) {
+        int index = ID_list.indexOf(oid);
+        ID_list.set(index, nid);
     }
 
     @Override

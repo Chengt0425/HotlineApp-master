@@ -133,16 +133,26 @@ class VideoSignalingClient {
             Log.d(TAG, "init() called");
 
             if (!roomName.isEmpty()) {
-                emitInitStatement(roomName);
+                joinRoom(roomName);
             }
+
+            // Get socket.id
+            socket.on("id", args -> {
+                String nid = (String)args[0];
+                if (identification != null) {
+                    //Socket.id is changed in server, so need to rejoin the room and inform others with new id
+                    rejoinRoom(roomName);
+                    replaceNewID(nid);
+                }
+                identification = nid;
+                Log.d(TAG, "new identification:"+identification);
+            });
 
             // room created event
             socket.on("created", args -> {
-                Log.d(TAG, "created call() called with: args =[" + Arrays.toString(args) + "]");
+                Log.d(TAG, "created call() called");
                 //isInitiator = true;
                 isInRoom = true;
-                identification = (String)args[0];
-                Log.d(TAG, "identification:"+identification);
                 callback.onCreatedRoom();
             });
 
@@ -155,21 +165,18 @@ class VideoSignalingClient {
 
             // when you joined a chat room successfully
             socket.on("joined", args -> {
-                Log.d(TAG, "joined call() called with: args = [" + Arrays.toString(args) + "]");
+                Log.d(TAG, "joined call() called");
                 isChannelReady = true;
                 isInRoom = true;
-                identification = (String)args[0];
-                Log.d(TAG, "socketid:"+identification);
                 callback.onJoinedRoom();
-
                 //Inform everyone that I'm in
-                emitMessage("handshake request");
+                emitMessage("Handshake");
             });
 
             // log event
-            socket.on("log", args ->
-                    Log.d(TAG, "log call() called with: args = [" + Arrays.toString(args) + "]")
-            );
+            socket.on("log", args -> {
+                Log.d(TAG, "log call() called with: args = [" + Arrays.toString(args) + "]");
+            });
 
             // bye event
             socket.on("bye", args -> {
@@ -188,6 +195,8 @@ class VideoSignalingClient {
                     String sid = data.getString("sender");
                     if(type.equalsIgnoreCase("message")) {
                         callback.onTryToStart(sid);
+                    } else if(type.equalsIgnoreCase("replace")) {
+                        callback.onReplaceID(data.getString("sender"), data.getString("newid"));
                     } else {
                         String rid = data.getString("receiver");
                         if (type.equalsIgnoreCase("offer") && rid.equals(identification)) {
@@ -208,12 +217,21 @@ class VideoSignalingClient {
         }
     }
 
-    private void emitInitStatement(String message) {
-        Log.d(TAG, "emitInitStatement() called with: event = [" + "create or join" + "], message = [" + message + "]");
-        socket.emit("create or join", message);
+    private void joinRoom(String message) {
+        Log.d(TAG, "joinRoom() called with: event = [" + "create or join" + "], message = [" + message + "]");
+
+        // This peer is first time join room
+        socket.emit("join", message, false);
     }
 
-    void emitMessage(String message) {
+    private void rejoinRoom(String message) {
+        Log.d(TAG, "rejoinRoom() called with: event = [" + "create or join" + "], message = [" + message + "]");
+
+        // This peer is rejoin to the room
+        socket.emit("join", message, true);
+    }
+
+    private void emitMessage(String message) {
         Log.d(TAG, "emitMessage() called with: message = [" + message + "]");
 
         JSONObject object = new JSONObject();
@@ -222,15 +240,30 @@ class VideoSignalingClient {
             object.put("sender", identification);
             object.put("msg", message);
         } catch (JSONException e) {
-            e.toString();
+            Log.d(TAG, e.toString());
+        }
+        socket.emit("message", roomName, object);
+    }
+
+    private void replaceNewID(String nid) {
+        Log.d(TAG, "emitMessage() called with: message = [" + nid + "]");
+
+        JSONObject object = new JSONObject();
+        try {
+            object.put("type", "replace");
+            object.put("sender", identification);
+            object.put("newid", nid);
+        } catch (JSONException e) {
+            Log.d(TAG, e.toString());
         }
         socket.emit("message", roomName, object);
     }
 
     void emitMessage(SessionDescription message, String recvid, int num) {
+        Log.d(TAG, "emitMessage() called with: message = [" + message.type.canonicalForm() + "]");
+
         JSONObject object = new JSONObject();
         try {
-            Log.d(TAG, "emitMessage() called with: message = [" + message + "]");
             object.put("type", message.type.canonicalForm());
             object.put("sender", identification);
             object.put("receiver", recvid);
@@ -476,6 +509,7 @@ class VideoSignalingClient {
         void onCreatedRoom();
         void onJoinedRoom();
         void onNewPeerJoined();
+        void onReplaceID(String oid, String nid);
         void onGetIPList(String id);
         void showToast(String msg);
     }
