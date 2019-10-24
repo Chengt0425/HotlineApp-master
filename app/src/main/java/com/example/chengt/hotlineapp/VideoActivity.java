@@ -13,6 +13,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import org.json.JSONException;
@@ -52,6 +53,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
 
     List<SurfaceViewRenderer> viewslist = new ArrayList<>();
     FrameLayout viewframes;
+    LinearLayout audioframes;
     EglBase rootEglBase = EglBase.create();
     int screenhight, screenwidth;
 
@@ -82,7 +84,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         reset_audio_mode = audioManager.getMode();
         audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
-
+        //PeerConnection.IceServer = PeerConnection.IceServer.builder("your_turn_server_url_and_port").setUsername("user_name_you_set_on_server").setPassword("password_of_user_name").createIceServer()
         PeerConnection.IceServer peerIceServer = PeerConnection.IceServer.builder("turn:140.113.167.181:3478").setUsername("turnserver").setPassword("turnserver").createIceServer();
         peerIceServers.add(peerIceServer);
         PeerConnection.IceServer peerIceServer_stun = PeerConnection.IceServer.builder("stun:140.113.167.181:3478").createIceServer();
@@ -105,7 +107,11 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         // Get the previous selection of reference type and start setting
         videoOn = intent.getBooleanExtra("reference", true);
         if(videoOn) Video_Start();
-        else Audio_Start();
+        else {
+            audioframes = findViewById(R.id.audio_frame);
+            audioframes.setVisibility(View.VISIBLE);
+            Audio_Start();
+        }
     }
 
     private void Audio_Start() {
@@ -295,6 +301,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
                 super.onIceConnectionChange(iceConnectionState);
                 if(iceConnectionState.toString().equalsIgnoreCase("failed")){
+                    // When ICE connection is failed, it need to restart the connection
                     IceRestart(id);
                 }
             }
@@ -316,7 +323,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 for(PeerConnection peers : localPeers) peers.close();
                 localPeers.clear();
                 VideoSignalingClient.getInstance().close();
-                AttributesReset();
+                SettingReset();
                 finish();
             } else{ //hangup by one of remote
                 int bye_index = ID_list.indexOf(id);
@@ -329,7 +336,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
                 if(localPeers.isEmpty()){
                     CloseViews(0);
                     VideoSignalingClient.getInstance().close();
-                    AttributesReset();
+                    SettingReset();
                     finish();
                 }
             }
@@ -342,12 +349,11 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
     private void GetRemoteStream(MediaStream stream) {
         //We have remote video stream. Add to the render.
         if(stream.videoTracks.size() > 0) {
-            Log.d("remotestream", "Get remote video stream");
             final VideoTrack videoTrack = stream.videoTracks.get(0);
             runOnUiThread(() -> {
                 try {
                     int peers = viewslist.size();
-                    addViews(peers);
+                    addOthersViews(peers);
                     adjustViewsLayout(peers);
                     videoTrack.addSink(viewslist.get(peers));
                 } catch (Exception e) {
@@ -359,7 +365,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             runOnUiThread(() -> {
                 try {
                     int peers = viewslist.size();
-                    addViews(peers);
+                    addOthersViews(peers);
                     adjustViewsLayout(peers);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -397,7 +403,7 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
         viewframes.addView(surfaceviewrenderer);
     }
 
-    private void addViews(final int index) {
+    private void addOthersViews(final int index) {
         SurfaceViewRenderer surfaceviewrenderer = new SurfaceViewRenderer(this);
         surfaceviewrenderer.init(rootEglBase.getEglBaseContext(), null);
         surfaceviewrenderer.setVisibility(View.VISIBLE);
@@ -459,7 +465,6 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             public void onCreateSuccess(SessionDescription sessionDescription) {
                 super.onCreateSuccess(sessionDescription);
                 localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
-                Log.d("onCreateSuccess", "SignalingClient emit");
                 VideoSignalingClient.getInstance().emitMessage(sessionDescription, id, ID_list.size());
             }
         }, sdpConstraints);
@@ -573,13 +578,12 @@ public class VideoActivity extends AppCompatActivity implements View.OnClickList
             public void onCreateSuccess(SessionDescription sessionDescription) {
                 super.onCreateSuccess(sessionDescription);
                 localPeers.get(index).setLocalDescription(new VideoCustomSdpObserver("localSetLocalDescription"), sessionDescription);
-                Log.d("onCreateSuccess", "SignalingClient emit");
                 VideoSignalingClient.getInstance().emitMessage(sessionDescription, id, ID_list.size());
             }
         }, restartCon);
     }
 
-    private void AttributesReset(){
+    private void SettingReset(){
         audioManager.setSpeakerphoneOn(true);
         audioManager.setMode(reset_audio_mode);
     }

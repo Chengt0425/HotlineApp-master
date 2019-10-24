@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Hotline_master</string>
+    <string name="on_call">通話中...</string>
 </resources>

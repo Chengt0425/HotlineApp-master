@@ -42,12 +42,6 @@
             >
 
         </activity>
-
-        <activity
-            android:name="com.example.chengt.hotlineapp.TextActivity"
-            android:screenOrientation="portrait">
-
-        </activity>
     </application>
 
-</manifest>
+    </manifest>

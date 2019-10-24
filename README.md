@@ -1,42 +1,28 @@
 # 程式架構及環境設定
 ## Secure Phone App
 
-### MainActivity.java
-和Firebase溝通，  
-取得會員資料並對使用者輸入的帳密進行驗證。
-
 ### CallActivity.java
-讓使用者輸入room name，  
-並選擇想使用的功能種類(視訊通話、文字及檔案傳輸)。
+使用者在這個頁面選擇想要進行連線的方式，經過Server或是P2P這兩種，
+也可以選擇要進行視訊或是影音通話，
+選擇完連線方式之後輸入房間名稱或是對方的IP位址，
+最後選擇是否要開啟擴音後，就可以撥出電話，
+而畫面的左下角是手機端目前的IP位址。
 
 ### VideoActivity.java
-處理「視訊通話」的部分，  
-**VideoSignalingClient.java**負責和VideoSignalingServer溝通。
+負責管理WebRTC的物件以及管理UI的部分，
+使用者會在這個頁面和其他使用者進行視訊。
 
-### TextActivity.java
-處理「文字及檔案傳輸」的部分，  
-**TextWebRTCClient.java**負責實作大部分的功能，  
-**MagicFileChooser.java**負責檔案傳輸中，有關檔案選取的部分。
+### VideoSignalingClient.java
+負責與其他人進行對話並且做出相對應的處理，
+包含與Signaling Server對話以及與其他VideoSignalingClient對話的功能。
 
 ## Secure Phone Server
-
-### Firebase
-透過Google帳號啟用Firebase的功能之後，  
-使用Android Studio和其進行連結，  
-並根據期末報告中的Firebase console的截圖，  
-設定Firebase console中有關於real-time database的部分。
 
 ### VideoSignalingServer
 「視訊通話」部分的Signaling Server，  
 初次使用時，必須先執行`npm install`來安裝需要的套件，  
-透過`node index.js`來啟動Server，  
+透過`node SignalingServer.js`來啟動Server，  
 會listen在1794這個port。
-
-### TextSignalingServer
-「文字及檔案傳輸」部分的Signaling Server，  
-初次使用時，必須先執行`npm install`來安裝需要的套件，  
-透過`node app.js`來啟動Server，  
-會listen在3000這個port。
 
 ### Coturn
 在Ubuntu的環境中，  
@@ -47,7 +33,7 @@
 預設的路徑位於「/etc/turnserver.conf」，  
 詳情請參考附圖。  
 ![turnconfig](Photo/turnconfig.PNG)
-  
+
 註：設定使用者和修改設定檔時，  必須確認**realm**的部分是相同的。
 
 # 編譯WebRTC source code
@@ -62,14 +48,5 @@
 6. 修改**.bashrc**以設定Java的環境變數，詳情請參考附圖
 ![bashrc](Photo/bashrc.PNG)
 7. 透過`./tools_webrtc/android/build_aar.py`編譯出aar格式的library  
-註：編譯完成後，library會位於根目錄底下，名為「libwebrtc.aar」。  
-  
-目前source code的部分，  
-只有修改過「pc/srtpsession.cc」這個檔案的**SetSend**和**SetRecv**，  
-使其能夠在Android Studio的logcat中印出session key，  
-詳情請參考附圖。  
-  
-註：需新增`#include <android/log.h>`於「srtpsession.cc」之中。
-
-![SetSend](Photo/SetSend.PNG)
-![SetRecv](Photo/SetRecv.PNG)
+註：編譯完成後，library會位於根目錄底下，名為「libwebrtc.aar」。
+8. 把編譯好的aar檔案放入專案的`app/libwebrtc`資料夾後，重新編譯專案就是使用新的library了

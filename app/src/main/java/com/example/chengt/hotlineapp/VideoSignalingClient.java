@@ -127,7 +127,7 @@ class VideoSignalingClient {
             IO.setDefaultOkHttpWebSocketFactory(okHttpClient);
 
             //Set the socket.io url here.
-            /*socket = IO.socket("your_socket_io_instance_url_with_port");*/
+            //socket = IO.socket("your_signaling_server_url_with_port");
             socket = IO.socket("https://140.113.167.179:1794");
             socket.connect();
             Log.d(TAG, "init() called");
