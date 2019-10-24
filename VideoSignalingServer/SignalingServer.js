@@ -18,8 +18,15 @@ var app = https.createServer(options,function(req, res) {
 
 console.log("Server is listening on port " + port + " ...");
 
-var io = socketIO.listen(app);
+var io = socketIO.listen(app, {
+	pingInterval: 10000,
+	pingTimeout: 2000
+});
 io.sockets.on('connection', function(socket) {
+	
+	// When client connect to server, making a information of its id
+	socket.emit('id', socket.id);	
+	
 	// convenience function to log server messages on the client
 	function log() {
 		var array = [];
@@ -33,8 +40,9 @@ io.sockets.on('connection', function(socket) {
 		socket.broadcast.to(room).emit('message', message);
 	});
 
-	socket.on('create or join', function(room) {
-		log('[Server]', 'Received request from Client ' + socket.id + ' to create or join room ' + room);
+	socket.on('join', function(room, isReconnect) {
+		log('[Server]', 
+			'Received request from Client ' + socket.id + ' to create or join room \"' + room + '\"');
 		
 		var room_object = io.sockets.adapter.rooms[room];
 		var numClients;
@@ -44,27 +52,33 @@ io.sockets.on('connection', function(socket) {
 
 		if (!room_object) {
 			socket.join(room);
-			log('[Server]', 'Client ' + socket.id + ' created room ' + room);
-			socket.emit('created', room, socket.id);
+			log('[Server]', 'Client ' + socket.id + ' created room \"' + room + '\"');
+			socket.emit('created');
 			room_object = io.sockets.adapter.rooms[room];
 			numClients = Object.keys(room_object).length;
-			log('[Server]', 'Room ' + room + ' now has ' + numClients + ' client(s)');
-		} else if (numClients === 1) {
-			log('[Server]', 'Client ' + socket.id + ' joined room ' + room);
-			io.sockets.in(room).emit('join', room);
+			log('[Server]', 'Room \"' + room + '\" now has ' + numClients + ' client(s)');
+
+		} else{
+			log('[Server]', 'Client ' + socket.id + ' joined room \"' + room + '\"');
+			io.sockets.in(room).emit('join');
 			socket.join(room);
-			socket.emit('joined', room, socket.id);
+			if(!isReconnect) socket.emit('joined');
 			numClients = Object.keys(room_object).length;
-			log('[Server]', 'Room ' + room + ' now has ' + numClients + ' client(s)');
-			io.sockets.in(room).emit('ready');
-		} else { // max 2 clients
-			socket.emit('full', room);
-			log('[Server]', 'Room ' + room + ' is full.');
+			log('[Server]', 'Room \"' + room + '\" now has ' + numClients + ' client(s)');
 		}
 	});
 
-	socket.on('bye', function(room){
+	socket.on('bye', function(room) {
 		log('[Server]', 'Client ' + socket.id + ' left room ' + room);
-		socket.broadcast.to(room).emit('message', 'bye');
+		socket.broadcast.to(room).emit('bye', socket.id);
 	});
+
+	socket.on('disconnecting', (reason) => {
+		log('[Server]', 'Client ' + socket.id + ' disconnecting');
+	});
+
+	socket.on('disconnect', (reason) => {
+		log('[Server]', 'Client ' + socket.id + ' disconnect');
+	});
+
 });
