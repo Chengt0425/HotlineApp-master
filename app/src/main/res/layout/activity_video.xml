@@ -14,20 +14,6 @@
         android:layout_height="match_parent"
         tools:context="com.example.chengt.webrtc_3.MainActivity">
 
-        <!--
-        <org.webrtc.SurfaceViewRenderer
-            android:id="@+id/remote_gl_surface_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
-        <org.webrtc.SurfaceViewRenderer
-            android:id="@+id/local_gl_surface_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="bottom|end"/>
-        -->
-
     </FrameLayout>
 
     <LinearLayout
@@ -44,13 +30,6 @@
             android:layout_gravity="center"
             app:srcCompat="@mipmap/webrtc"></ImageView>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="@string/on_call"
-            android:textColor="#FFEB3B"
-            android:textSize="20dp"></TextView>
     </LinearLayout>
 
 

@@ -46,9 +46,6 @@ io.sockets.on('connection', function(socket) {
 		
 		var room_object = io.sockets.adapter.rooms[room];
 		var numClients;
-		if (room_object) {
-			numClients = Object.keys(room_object).length;
-		}   
 
 		if (!room_object) {
 			socket.join(room);
@@ -71,10 +68,6 @@ io.sockets.on('connection', function(socket) {
 	socket.on('bye', function(room) {
 		log('[Server]', 'Client ' + socket.id + ' left room ' + room);
 		socket.broadcast.to(room).emit('bye', socket.id);
-	});
-
-	socket.on('disconnecting', (reason) => {
-		log('[Server]', 'Client ' + socket.id + ' disconnecting');
 	});
 
 	socket.on('disconnect', (reason) => {
