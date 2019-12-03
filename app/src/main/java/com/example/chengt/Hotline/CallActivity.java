@@ -1,12 +1,9 @@
-package com.example.chengt.hotlineapp;
+package com.example.chengt.Hotline;
 
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -20,15 +17,11 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
-import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
 
 
 public class CallActivity extends AppCompatActivity {
@@ -150,7 +143,7 @@ public class CallActivity extends AppCompatActivity {
         } catch (SocketException ex) {
             ex.printStackTrace();
         }
-        return null;
+        return "";
     }
 
     public void onSelect(View view) {

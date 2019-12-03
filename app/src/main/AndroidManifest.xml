@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.chengt.hotlineapp">
+    package="com.example.chengt.Hotline">
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -18,14 +18,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar"
         >
-        <activity
-            android:name="com.example.chengt.hotlineapp.MainActivity"
-            android:screenOrientation="portrait">
-
-        </activity>
 
         <activity
-            android:name="com.example.chengt.hotlineapp.CallActivity"
+            android:name="com.example.chengt.Hotline.CallActivity"
             android:screenOrientation="portrait"
             android:exported="true">
 
@@ -37,11 +32,11 @@
         </activity>
 
         <activity
-            android:name="com.example.chengt.hotlineapp.VideoActivity"
+            android:name="com.example.chengt.Hotline.VideoActivity"
             android:screenOrientation="portrait"
             >
 
         </activity>
     </application>
 
-    </manifest>
+</manifest>

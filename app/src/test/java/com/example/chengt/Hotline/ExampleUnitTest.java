@@ -1,4 +1,4 @@
-package com.example.chengt.hotlineapp;
+package com.example.chengt.Hotline;
 
 import org.junit.Test;
 
